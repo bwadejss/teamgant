@@ -1,0 +1,5 @@
+{
+  "name": "SiteWork Gantt Planner",
+  "description": "A production-ready MS Project-style Gantt planner for multi-step site work with auto-scheduling, holiday exclusions, and Excel export.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,36 @@
+
+import * as XLSX from 'xlsx';
+import { Site, Holiday, Step } from '../types';
+import { formatDateUK } from './dateUtils';
+
+export const exportToExcel = (sites: Site[], holidays: Holiday[]) => {
+  const wb = XLSX.utils.book_new();
+
+  // Sites & Steps Sheet
+  const siteData = sites.flatMap(site => 
+    site.steps.map(step => ({
+      'Site Name': site.name,
+      'Owner': site.owner,
+      'Status': site.status,
+      'Task Name': step.name,
+      'Start Date': formatDateUK(step.startDate),
+      'Finish Date': formatDateUK(step.finishDate),
+      'Duration (Workdays)': step.durationWorkdays,
+      'Done': step.done ? 'Yes' : 'No'
+    }))
+  );
+
+  const wsSites = XLSX.utils.json_to_sheet(siteData);
+  XLSX.utils.book_append_sheet(wb, wsSites, 'Project Plan');
+
+  // Holidays Sheet
+  const holidayData = holidays.map(h => ({
+    'Date': formatDateUK(h.date),
+    'Description': h.description
+  }));
+  const wsHolidays = XLSX.utils.json_to_sheet(holidayData);
+  XLSX.utils.book_append_sheet(wb, wsHolidays, 'Holidays');
+
+  // Generate and Download
+  XLSX.writeFile(wb, `SiteWork_Planner_${new Date().toISOString().split('T')[0]}.xlsx`);
+};
