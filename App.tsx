@@ -13,7 +13,7 @@ import { importFromExcel } from './utils/excelImport';
 import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS } from './constants';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings } from 'lucide-react';
 
-const APP_VERSION = "v1.2.8";
+const APP_VERSION = "v1.2.9";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
