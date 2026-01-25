@@ -8,9 +8,11 @@ import {
   differenceInCalendarDays, 
   startOfYear, 
   endOfYear, 
+  endOfMonth,
   addMonths,
   parseISO,
   isBefore,
+  isAfter,
   startOfDay,
   isWeekend
 } from 'date-fns';
@@ -51,8 +53,28 @@ const GanttChart: React.FC<GanttChartProps> = ({
     }
   }, [viewMode]);
 
+  // Start with 2026 as base
   const startDate = useMemo(() => startOfYear(new Date(2026, 0, 1)), []);
-  const endDate = useMemo(() => endOfYear(addMonths(startDate, 11)), [startDate]);
+  
+  // Dynamically calculate end date based on actual scheduled tasks
+  // Logic: 12 months past the latest task finish date
+  const endDate = useMemo(() => {
+    let latestTaskFinish = addMonths(startDate, 11); // Initial default: End of 2026
+    
+    rows.forEach(row => {
+      if (row.step) {
+        const finish = parseISO(row.step.finishDate);
+        if (isAfter(finish, latestTaskFinish)) {
+          latestTaskFinish = finish;
+        }
+      }
+    });
+
+    // Always provide a 12-month buffer past the last item
+    const extended = addMonths(latestTaskFinish, 12);
+    // Align to end of month/year for aesthetic spacing
+    return endOfMonth(extended);
+  }, [rows, startDate]);
 
   const days = useMemo(() => eachDayOfInterval({ start: startDate, end: endDate }), [startDate, endDate]);
   const months = useMemo(() => eachMonthOfInterval({ start: startDate, end: endDate }), [startDate, endDate]);
@@ -126,7 +148,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
                 key={m.toISOString()} 
                 className={`border-r px-3 flex items-center text-[10px] font-bold transition-colors
                   ${isDarkMode ? 'text-slate-400 bg-slate-900 border-slate-800' : 'text-slate-600 bg-slate-50 border-slate-200'}`}
-                style={{ width: getWidth(m.toISOString(), endOfYear(m).toISOString()) }}
+                style={{ width: getWidth(m.toISOString(), endOfMonth(m).toISOString()) }}
               >
                 {format(m, 'MMMM yyyy')}
               </div>

@@ -14,7 +14,7 @@ import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS } from './constants';
 import { addMonths, parseISO } from 'date-fns';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings } from 'lucide-react';
 
-const APP_VERSION = "v1.6.0";
+const APP_VERSION = "v1.6.2";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -125,8 +125,6 @@ const App: React.FC = () => {
         const currentlyAllConfirmed = site.steps.length > 0 && site.steps.every(s => !!s.isConfirmed);
         const newSiteStatus = currentlyAllConfirmed ? SiteStatus.TBC : SiteStatus.BOOKED;
         
-        // If site becomes Booked (Confirmed toggle on), set all steps to confirmed + lock dates
-        // If site becomes TBC (Confirmed toggle off), set all steps to TBC + unlock dates
         const updatedSteps = scheduled.steps.map(s => {
           const originalStep = site.steps.find(os => os.name === s.name);
           return {
@@ -219,7 +217,6 @@ const App: React.FC = () => {
       return site;
     });
 
-    // Check for auto-regeneration if Revisit is marked done
     if (stepName === StepName.REVISIT && config.autoRegenerateVisit) {
       const site = sitesToSave.find(s => s.id === siteId);
       const revisitStep = site?.steps.find(st => st.name === StepName.REVISIT);
@@ -227,11 +224,9 @@ const App: React.FC = () => {
       if (site && revisitStep?.done) {
         addLog(`Final step complete for ${site.name}. Generating next visit...`);
         
-        // Extract base name and version
-        // Logic: "Site Name (WTW)" -> "Site Name (WTW) (V2)" -> "Site Name (WTW) (V3)"
         let baseName = site.name;
         let versionNumber = 2;
-        const vMatch = site.name.match(/\(V(\d+)\)$/);
+        const vMatch = site.name.match(/\s*\(V(\d+)\)$/);
         
         if (vMatch) {
           versionNumber = parseInt(vMatch[1]) + 1;
@@ -256,7 +251,7 @@ const App: React.FC = () => {
         };
         
         sitesToSave = [...sitesToSave, newSite];
-        addLog(`Added ${newSiteName} to schedule.`);
+        addLog(`Added ${newSiteName} to schedule starting ${nextVisitStartDate.getFullYear()}.`);
       }
     }
 
@@ -270,7 +265,6 @@ const App: React.FC = () => {
         const stepIdx = site.steps.findIndex(s => s.name === stepName);
         let newSteps = [...site.steps];
         if (stepIdx > -1) {
-          // Note: per user request, changing calendar date doesn't force toggle to 'confirmed'
           newSteps[stepIdx] = { ...newSteps[stepIdx], manualStartDate: newDate };
         } else {
           newSteps.push({ 

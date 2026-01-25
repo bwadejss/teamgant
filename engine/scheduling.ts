@@ -114,7 +114,8 @@ export class SchedulingEngine {
         return step?.done === true;
       });
 
-      let lastFinish: Date = site.status === SiteStatus.BOOKED && site.bookedStartDate
+      // FIX: Respect bookedStartDate even for TBC sites to allow cross-year scheduling (V2/V3)
+      let lastFinish: Date = site.bookedStartDate
         ? parseISO(site.bookedStartDate) 
         : getWorkingDayOnOrAfter(new Date(), this.holidays);
 
@@ -129,7 +130,6 @@ export class SchedulingEngine {
         let start: Date;
         let finish: Date;
 
-        // Manual Start Date just pins the date, doesn't force color
         if (existingStep?.done || existingStep?.manualStartDate) {
           const lockDate = existingStep.manualStartDate || existingStep.startDate;
           start = getWorkingDayOnOrAfter(parseISO(lockDate), this.holidays);
@@ -146,7 +146,6 @@ export class SchedulingEngine {
           finish = range.finish;
         }
 
-        // UPDATED: A step is TBC (hatched) if its isConfirmed flag is false.
         const isConfirmed = existingStep?.isConfirmed ?? false;
         const isTentative = !isConfirmed;
 

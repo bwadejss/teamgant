@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Holiday } from '../types';
 import { X, Trash2, Calendar as CalIcon, Plus } from 'lucide-react';
@@ -25,8 +24,8 @@ const HolidayManager: React.FC<HolidayManagerProps> = ({ holidays, onAdd, onRemo
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden border dark:border-slate-800">
-        <div className="flex items-center justify-between p-5 border-b dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden border dark:border-slate-800 transition-colors">
+        <div className="flex items-center justify-between p-5 border-b dark:border-slate-800 bg-slate-50 dark:bg-slate-950 transition-colors">
           <div>
             <h2 className="text-xl font-bold dark:text-white">Holiday Manager</h2>
             <p className="text-xs text-slate-500 mt-0.5">Define non-working days for scheduling</p>
