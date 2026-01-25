@@ -6,7 +6,7 @@ import { formatDateUK } from './dateUtils';
 export const exportToExcel = (sites: Site[], holidays: Holiday[]) => {
   const wb = XLSX.utils.book_new();
 
-  // Sites & Steps Sheet - Include ID and Order for reconstruction
+  // Project Plan Sheet
   const siteData = sites.flatMap(site => 
     site.steps.map(step => ({
       'Site Name': site.name,
@@ -17,7 +17,7 @@ export const exportToExcel = (sites: Site[], holidays: Holiday[]) => {
       'Finish Date': formatDateUK(step.finishDate),
       'Duration (Workdays)': step.durationWorkdays,
       'Done': step.done ? 'Yes' : 'No',
-      '_siteId': site.id, // Metadata for import
+      '_siteId': site.id,
       '_order': site.order
     }))
   );
@@ -33,6 +33,5 @@ export const exportToExcel = (sites: Site[], holidays: Holiday[]) => {
   const wsHolidays = XLSX.utils.json_to_sheet(holidayData);
   XLSX.utils.book_append_sheet(wb, wsHolidays, 'Holidays');
 
-  // Generate and Download
   XLSX.writeFile(wb, `SiteWork_Backup_${new Date().toISOString().split('T')[0]}.xlsx`);
 };

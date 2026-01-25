@@ -18,17 +18,19 @@ export const importFromExcel = async (file: File): Promise<ImportResult> => {
         
         // Parse Holidays
         const holidaySheet = workbook.Sheets['Holidays'];
-        const holidayRows = holidaySheet ? XLSX.utils.sheet_to_json<any>(holidaySheet) : [];
-        const holidays: Holiday[] = holidayRows.map((row, idx) => ({
-          id: `h-${idx}-${Date.now()}`,
-          date: parseUKDate(row['Date'])?.toISOString() || new Date().toISOString(),
-          description: row['Description'] || 'Imported Holiday'
-        }));
+        const holidays: Holiday[] = holidaySheet 
+          ? XLSX.utils.sheet_to_json<any>(holidaySheet).map((row, idx) => ({
+              id: `h-${idx}-${Date.now()}`,
+              date: parseUKDate(row['Date'])?.toISOString() || new Date().toISOString(),
+              description: row['Description'] || 'Imported Holiday'
+            }))
+          : [];
 
-        // Parse Sites & Steps
+        // Parse Sites
         const siteSheet = workbook.Sheets['Project Plan'];
-        const siteRows = siteSheet ? XLSX.utils.sheet_to_json<any>(siteSheet) : [];
+        if (!siteSheet) throw new Error('Could not find "Project Plan" sheet.');
         
+        const siteRows = XLSX.utils.sheet_to_json<any>(siteSheet);
         const sitesMap = new Map<string, Site>();
         
         siteRows.forEach(row => {
@@ -62,8 +64,8 @@ export const importFromExcel = async (file: File): Promise<ImportResult> => {
         });
 
         resolve({ sites: Array.from(sitesMap.values()), holidays });
-      } catch (err) {
-        reject(new Error('Failed to parse Excel file. Ensure it is a valid SiteWork export.'));
+      } catch (err: any) {
+        reject(new Error(err.message || 'Failed to parse Excel file.'));
       }
     };
     reader.onerror = () => reject(new Error('File reading failed.'));

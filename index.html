@@ -5,33 +5,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SiteWork Gantt Planner</title>
-    <!-- Tailwind is handled by the build process, but we keep the CDN for quick styles if needed -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      /* Custom styles for Gantt scroll sync and grid */
-      .gantt-container::-webkit-scrollbar {
-        height: 8px;
-        width: 8px;
-      }
-      .gantt-container::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-      }
-      .gantt-grid {
-        background-size: 40px 100%;
-        background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px);
-      }
-      .diagonal-stripe {
-        background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.2) 10px, rgba(255,255,255,0.2) 20px);
-      }
-      /* Hide scrollbars but keep functionality */
-      .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-      }
-      .scrollbar-hide {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
+      .gantt-container::-webkit-scrollbar { height: 8px; width: 8px; }
+      .gantt-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      .gantt-grid { background-size: 40px 100%; background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px); }
+      .diagonal-stripe { background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.2) 10px, rgba(255,255,255,0.2) 20px); }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
   <script type="importmap">
 {
@@ -51,7 +32,6 @@
 </head>
   <body class="bg-slate-900 text-slate-100 antialiased overflow-hidden">
     <div id="root"></div>
-    <!-- Entry point script: changed from /index.tsx to ./index.tsx for GitHub Pages compatibility -->
     <script type="module" src="./index.tsx"></script>
   <script type="module" src="/index.tsx"></script>
 </body>
