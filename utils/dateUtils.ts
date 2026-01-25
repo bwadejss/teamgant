@@ -46,13 +46,6 @@ export const formatDateUK = (date: string | Date): string => {
   return format(d, 'dd/MM/yyyy');
 };
 
-/**
- * Flexible UK date parser. Handles:
- * dd/mm/yyyy
- * d/m/yyyy
- * dd/mm/yy
- * d/m/yy
- */
 export const parseUKDate = (input: string): Date | null => {
   if (!input) return null;
   const formats = ['dd/MM/yyyy', 'd/M/yyyy', 'dd/MM/yy', 'd/M/yy', 'yyyy-MM-dd'];
@@ -60,8 +53,6 @@ export const parseUKDate = (input: string): Date | null => {
   for (const f of formats) {
     const parsed = parse(input, f, new Date());
     if (!isNaN(parsed.getTime())) {
-      // If the year is provided as 2 digits (e.g. '26'), date-fns parse 'yy' 
-      // usually handles this, but let's be safe if it parsed as year 26 AD.
       let year = parsed.getFullYear();
       if (year < 100) {
         parsed.setFullYear(2000 + year);
@@ -70,12 +61,11 @@ export const parseUKDate = (input: string): Date | null => {
     }
   }
   
-  // Last resort ISO parse
   const isoParsed = parseISO(input);
   return isNaN(isoParsed.getTime()) ? null : isoParsed;
 };
 
-export const calculateRevisitDate = (finalFinishDate: string, holidays: Holiday[]): Date => {
-  const base = addMonths(parseISO(finalFinishDate), 3);
+export const calculateRevisitDate = (finalFinishDate: string, holidays: Holiday[], offsetMonths: number): Date => {
+  const base = addMonths(parseISO(finalFinishDate), offsetMonths);
   return getWorkingDayOnOrAfter(base, holidays);
 };

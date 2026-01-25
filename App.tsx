@@ -1,18 +1,20 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Site, Holiday, ViewMode, SiteStatus, StepName } from './types';
+import { Site, Holiday, ViewMode, SiteStatus, StepName, UserConfig } from './types';
 import SiteTable from './components/SiteTable';
 import GanttChart from './components/GanttChart';
 import AddSiteForm from './components/AddSiteForm';
 import HolidayManager from './components/HolidayManager';
+import ConfigModal from './components/ConfigModal';
 import ReadmeModal from './components/ReadmeModal';
 import ConfirmModal from './components/ConfirmModal';
 import { SchedulingEngine } from './engine/scheduling';
 import { exportToExcel } from './utils/excelExport';
 import { importFromExcel } from './utils/excelImport';
-import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2 } from 'lucide-react';
+import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS } from './constants';
+import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings } from 'lucide-react';
 
-const APP_VERSION = "v1.1.0";
+const APP_VERSION = "v1.2.7";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -25,12 +27,22 @@ const SEED_HOLIDAYS: Holiday[] = [
   { id: '8', date: '2026-12-28T00:00:00.000Z', description: 'Boxing Day (Substitute Day)' },
 ];
 
+const INITIAL_CONFIG: UserConfig = {
+  stepColors: DEFAULT_STEP_COLORS,
+  defaultDurations: DEFAULT_DURATIONS,
+  keepColorOnDone: false,
+  revisitOffsetMonths: 3,
+  sortMode: 'Creation'
+};
+
 const App: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('Day');
+  const [config, setConfig] = useState<UserConfig>(INITIAL_CONFIG);
   const [showAddSite, setShowAddSite] = useState(false);
   const [showHolidays, setShowHolidays] = useState(false);
+  const [showConfig, setShowConfig] = useState(false);
   const [showReadme, setShowReadme] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -40,12 +52,20 @@ const App: React.FC = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
   const [importStatus, setImportStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addLog = useCallback((msg: string) => {
+    console.log(`[APP DEBUG] ${msg}`);
+    setDebugLog(prev => [msg, ...prev].slice(0, 10));
+  }, []);
 
   useEffect(() => {
     const savedSites = localStorage.getItem('sitework_sites');
     const savedHolidays = localStorage.getItem('sitework_holidays');
     const savedTheme = localStorage.getItem('sitework_theme');
+    const savedConfig = localStorage.getItem('sitework_config');
     
     if (savedSites) {
       try {
@@ -60,15 +80,19 @@ const App: React.FC = () => {
     } else {
       setHolidays(SEED_HOLIDAYS);
     }
+
+    if (savedConfig) {
+      try { setConfig({ ...INITIAL_CONFIG, ...JSON.parse(savedConfig) }); } catch (e) { setConfig(INITIAL_CONFIG); }
+    }
     
     if (savedTheme === 'light') setIsDarkMode(false);
     else setIsDarkMode(true);
   }, []);
 
   const scheduledSites = useMemo(() => {
-    const engine = new SchedulingEngine(holidays);
+    const engine = new SchedulingEngine(holidays, config);
     return engine.scheduleAll(sites);
-  }, [sites, holidays]);
+  }, [sites, holidays, config]);
 
   const flattenedRows = useMemo(() => {
     const rows: { site: Site; step?: any; rowIndex: number }[] = [];
@@ -87,6 +111,11 @@ const App: React.FC = () => {
   const saveSites = useCallback((newSites: Site[]) => {
     setSites(newSites);
     localStorage.setItem('sitework_sites', JSON.stringify(newSites));
+  }, []);
+
+  const saveConfig = useCallback((newConfig: UserConfig) => {
+    setConfig(newConfig);
+    localStorage.setItem('sitework_config', JSON.stringify(newConfig));
   }, []);
 
   const handleImportClick = () => {
@@ -190,6 +219,7 @@ const App: React.FC = () => {
   };
 
   const handleUpdateStepDate = (siteId: string, stepName: StepName, newDate: string) => {
+    addLog(`Date Update Triggered: ${siteId} - ${stepName} -> ${newDate}`);
     const newSites = sites.map(site => {
       if (site.id === siteId) {
         const stepIdx = site.steps.findIndex(s => s.name === stepName);
@@ -197,7 +227,16 @@ const App: React.FC = () => {
         if (stepIdx > -1) {
           newSteps[stepIdx] = { ...newSteps[stepIdx], manualStartDate: newDate };
         } else {
-          newSteps.push({ id: `${siteId}-${stepName}`, siteId, name: stepName, done: false, durationWorkdays: 1, startDate: '', finishDate: '', manualStartDate: newDate });
+          newSteps.push({ 
+            id: `${siteId}-${stepName}`, 
+            siteId, 
+            name: stepName, 
+            done: false, 
+            durationWorkdays: config.defaultDurations[stepName], 
+            startDate: '', 
+            finishDate: '', 
+            manualStartDate: newDate 
+          });
         }
         return { ...site, steps: newSteps };
       }
@@ -207,20 +246,34 @@ const App: React.FC = () => {
   };
 
   const handleUpdateStepDuration = (siteId: string, stepName: StepName, duration: number) => {
+    const d = Math.max(1, duration);
+    addLog(`Duration Update Triggered: ${siteId} / ${stepName} -> ${d} days`);
+    
     const newSites = sites.map(site => {
       if (site.id === siteId) {
         const stepIdx = site.steps.findIndex(s => s.name === stepName);
         let newSteps = [...site.steps];
         if (stepIdx > -1) {
-          newSteps[stepIdx] = { ...newSteps[stepIdx], durationWorkdays: duration };
+          newSteps[stepIdx] = { ...newSteps[stepIdx], durationWorkdays: d };
         } else {
           const currentStep = scheduledSites.find(s => s.id === siteId)?.steps.find(st => st.name === stepName);
-          newSteps.push({ id: `${siteId}-${stepName}`, siteId, name: stepName, done: false, durationWorkdays: duration, startDate: currentStep?.startDate || '', finishDate: currentStep?.finishDate || '' });
+          newSteps.push({ 
+            id: `${siteId}-${stepName}`, 
+            siteId, 
+            name: stepName, 
+            done: false, 
+            durationWorkdays: d, 
+            startDate: currentStep?.startDate || '', 
+            finishDate: currentStep?.finishDate || '' 
+          });
         }
-        return { ...site, steps: newSteps };
+        
+        const newCustomDurations = { ...(site.customDurations || {}), [stepName]: d };
+        return { ...site, steps: newSteps, customDurations: newCustomDurations };
       }
       return site;
     });
+    
     saveSites(newSites);
   };
 
@@ -252,6 +305,18 @@ const App: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {showDebug && (
+             <div className="fixed top-20 left-1/2 -translate-x-1/2 w-96 bg-black/90 border border-blue-500/50 p-3 rounded-lg z-[500] text-[10px] font-mono text-blue-400 shadow-2xl">
+               <div className="flex justify-between mb-2"><span>SYSTEM EVENT LOG</span><button onClick={() => setDebugLog([])}>Clear</button></div>
+               {debugLog.length === 0 && <div className="text-slate-600 italic">No events recorded...</div>}
+               {debugLog.map((log, i) => <div key={i} className="truncate border-b border-white/5 py-1">>> {log}</div>)}
+             </div>
+          )}
+          
+          <button onClick={() => setShowDebug(!showDebug)} className={`p-2 rounded-lg transition-colors ${showDebug ? 'bg-blue-600' : 'bg-slate-800'}`} title="Toggle Debug Mode">
+            <Bug size={18} />
+          </button>
+
           <button onClick={handleExpandAll} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2">
             {expandedSites.size === sites.length ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             {expandedSites.size === sites.length ? "Collapse All" : "Expand All"}
@@ -267,6 +332,10 @@ const App: React.FC = () => {
 
           <button onClick={() => setShowHolidays(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2">
             <Calendar size={14} /> Holidays
+          </button>
+
+          <button onClick={() => setShowConfig(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2">
+            <Settings size={14} /> Config
           </button>
           
           <div className="flex items-center gap-1 mr-2">
@@ -334,6 +403,7 @@ const App: React.FC = () => {
               onToggleStepDone={handleToggleStepDone}
               isDarkMode={isDarkMode}
               viewMode={viewMode}
+              userConfig={config}
             />
           </div>
         </div>
@@ -375,6 +445,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active Sites: {sites.length}</div>
           <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Holidays: {holidays.length}</div>
+          <div className="flex items-center gap-1 text-slate-400">Sort: {config.sortMode}</div>
         </div>
         <div className="flex items-center gap-3 italic text-slate-400">
           <span>Shift + Scroll for Horizontal Panning • Import/Export Excel for Backups</span>
@@ -391,6 +462,7 @@ const App: React.FC = () => {
         setHolidays(nextHolidays);
         localStorage.setItem('sitework_holidays', JSON.stringify(nextHolidays));
       }} onClose={() => setShowHolidays(false)} />}
+      {showConfig && <ConfigModal config={config} onUpdate={saveConfig} onClose={() => setShowConfig(false)} isDarkMode={isDarkMode} />}
       {showReadme && <ReadmeModal onClose={() => setShowReadme(false)} />}
     </div>
   );

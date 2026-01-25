@@ -1,15 +1,17 @@
 
 import { parseISO, startOfDay, addDays } from 'date-fns';
-import { Site, Holiday, SiteStatus, StepName, Step } from '../types';
+import { Site, Holiday, SiteStatus, StepName, Step, UserConfig } from '../types';
 import { isWorkingDay, addWorkdays, getWorkingDayOnOrAfter, calculateRevisitDate } from '../utils/dateUtils';
-import { DEFAULT_DURATIONS, MAX_CAPACITY } from '../constants';
+import { MAX_CAPACITY } from '../constants';
 
 export class SchedulingEngine {
   private holidays: Holiday[];
+  private config: UserConfig;
   private capacityUsage: Map<StepName, Map<string, number>> = new Map();
 
-  constructor(holidays: Holiday[]) {
+  constructor(holidays: Holiday[], config: UserConfig) {
     this.holidays = holidays;
+    this.config = config;
     Object.values(StepName).forEach(name => {
       this.capacityUsage.set(name, new Map());
     });
@@ -79,9 +81,22 @@ export class SchedulingEngine {
   public scheduleAll(sites: Site[]): Site[] {
     this.capacityUsage.forEach(map => map.clear());
     
+    // Sort logic moved into SchedulingEngine to ensure capacity is reserved in correct order
     const sortedSites = [...sites].sort((a, b) => {
+      // Always prioritize BOOKED over TBC
       if (a.status === SiteStatus.BOOKED && b.status === SiteStatus.TBC) return -1;
       if (a.status === SiteStatus.TBC && b.status === SiteStatus.BOOKED) return 1;
+
+      if (this.config.sortMode === 'Name') {
+        return a.name.localeCompare(b.name);
+      } else if (this.config.sortMode === 'Date') {
+        // If booked, use booked date, otherwise creation/order
+        const aDate = a.bookedStartDate ? parseISO(a.bookedStartDate).getTime() : a.createdAt;
+        const bDate = b.bookedStartDate ? parseISO(b.bookedStartDate).getTime() : b.createdAt;
+        return aDate - bDate;
+      }
+      
+      // Default: Creation order (original behavior)
       if (a.status === SiteStatus.BOOKED && b.status === SiteStatus.BOOKED) {
         return parseISO(a.bookedStartDate!).getTime() - parseISO(b.bookedStartDate!).getTime();
       }
@@ -114,19 +129,18 @@ export class SchedulingEngine {
         if (stepName === StepName.REVISIT && !allPriorDone) return;
 
         const existingStep = site.steps.find(s => s.name === stepName);
-        const duration = site.customDurations?.[stepName] ?? existingStep?.durationWorkdays ?? DEFAULT_DURATIONS[stepName];
+        const duration = site.customDurations?.[stepName] ?? existingStep?.durationWorkdays ?? this.config.defaultDurations[stepName];
         
         let start: Date;
         let finish: Date;
 
-        // CRITICAL: If a step is marked DONE or has a MANUAL override, we treat it as fixed/locked.
         if (existingStep?.done || existingStep?.manualStartDate) {
           const lockDate = existingStep.manualStartDate || existingStep.startDate;
           start = getWorkingDayOnOrAfter(parseISO(lockDate), this.holidays);
           finish = addWorkdays(start, duration, this.holidays);
           this.reserveSlot(start, stepName); 
         } else if (stepName === StepName.REVISIT && finalPresentationFinish) {
-          start = calculateRevisitDate(finalPresentationFinish, this.holidays);
+          start = calculateRevisitDate(finalPresentationFinish, this.holidays, this.config.revisitOffsetMonths);
           finish = addWorkdays(start, duration, this.holidays);
           this.reserveSlot(start, stepName);
         } else {

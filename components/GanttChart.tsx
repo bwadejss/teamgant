@@ -1,7 +1,7 @@
 
 import React, { useMemo, useRef, useState, useEffect } from 'react';
-import { Site, Step, Holiday, ViewMode, StepName } from '../types';
-import { STEP_COLORS, ROW_HEIGHT, MAX_CAPACITY } from '../constants';
+import { Site, Step, Holiday, ViewMode, StepName, UserConfig } from '../types';
+import { MAX_CAPACITY, ROW_HEIGHT } from '../constants';
 import { 
   eachDayOfInterval, 
   eachMonthOfInterval, 
@@ -26,6 +26,7 @@ interface GanttChartProps {
   onToggleStepDone: (siteId: string, stepName: StepName) => void;
   isDarkMode: boolean;
   viewMode: ViewMode;
+  userConfig: UserConfig;
 }
 
 const GanttChart: React.FC<GanttChartProps> = ({ 
@@ -35,7 +36,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
   setHoveredRowIndex,
   onToggleStepDone,
   isDarkMode,
-  viewMode
+  viewMode,
+  userConfig
 }) => {
   const horizontalScrollRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -191,11 +193,15 @@ const GanttChart: React.FC<GanttChartProps> = ({
                 <div 
                   onClick={() => setSelectedBar({ site: row.site, step: row.step! })}
                   className={`absolute top-2 bottom-2 rounded cursor-pointer flex items-center px-2 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95
-                    ${row.step.isTentative ? 'bg-slate-500/80 diagonal-stripe' : STEP_COLORS[row.step.name]} 
-                    ${row.step.done ? 'bg-emerald-600 ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900 shadow-xl scale-[1.01]' : ''} 
+                    ${row.step.isTentative ? 'bg-slate-500/80 diagonal-stripe' : ''} 
+                    ${row.step.done && !userConfig.keepColorOnDone ? 'bg-emerald-600 ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900 shadow-xl scale-[1.01]' : ''} 
                     ${!row.step.done && isBefore(parseISO(row.step.finishDate), startOfDay(new Date())) ? 'ring-2 ring-red-500 ring-offset-1 ring-offset-slate-900' : ''}
                   `}
-                  style={{ left: getPosition(row.step.startDate), width: Math.max(8, getWidth(row.step.startDate, row.step.finishDate)) }}
+                  style={{ 
+                    left: getPosition(row.step.startDate), 
+                    width: Math.max(8, getWidth(row.step.startDate, row.step.finishDate)),
+                    backgroundColor: (!row.step.done || userConfig.keepColorOnDone) && !row.step.isTentative ? userConfig.stepColors[row.step.name] : undefined
+                  }}
                 >
                   <span className="truncate pr-1">{row.step.name}</span>
                   {row.step.done && <Check size={12} strokeWidth={3} className="ml-auto" />}
@@ -209,7 +215,10 @@ const GanttChart: React.FC<GanttChartProps> = ({
       {selectedBar && (
         <div className={`absolute top-6 right-6 z-50 w-80 rounded-2xl shadow-2xl border overflow-hidden animate-in zoom-in-95 duration-200
           ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-          <div className={`p-4 text-white flex justify-between items-center ${selectedBar.step.done ? 'bg-emerald-600' : (selectedBar.step.isTentative ? 'bg-slate-500' : STEP_COLORS[selectedBar.step.name])}`}>
+          <div 
+            className={`p-4 text-white flex justify-between items-center ${selectedBar.step.done && !userConfig.keepColorOnDone ? 'bg-emerald-600' : ''}`}
+            style={{ backgroundColor: (!selectedBar.step.done || userConfig.keepColorOnDone) ? userConfig.stepColors[selectedBar.step.name] : undefined }}
+          >
             <h3 className="font-bold text-sm tracking-wide">{selectedBar.step.name}</h3>
             <button onClick={() => setSelectedBar(null)} className="hover:bg-white/20 p-1 rounded-full transition-colors"><X size={18}/></button>
           </div>

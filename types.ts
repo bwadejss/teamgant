@@ -45,6 +45,15 @@ export interface Holiday {
 }
 
 export type ViewMode = 'Day' | 'Week' | 'Month';
+export type SortMode = 'Creation' | 'Name' | 'Date';
+
+export interface UserConfig {
+  stepColors: Record<StepName, string>;
+  defaultDurations: Record<StepName, number>;
+  keepColorOnDone: boolean;
+  revisitOffsetMonths: number;
+  sortMode: SortMode;
+}
 
 export interface CalendarSlot {
   date: string;
