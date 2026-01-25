@@ -13,7 +13,7 @@ import { importFromExcel } from './utils/excelImport';
 import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS } from './constants';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings } from 'lucide-react';
 
-const APP_VERSION = "v1.3.1";
+const APP_VERSION = "v1.3.2";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -308,7 +308,7 @@ const App: React.FC = () => {
              <div className="fixed top-20 left-1/2 -translate-x-1/2 w-96 bg-black/90 border border-blue-500/50 p-3 rounded-lg z-[500] text-[10px] font-mono text-blue-400 shadow-2xl">
                <div className="flex justify-between mb-2"><span>SYSTEM EVENT LOG</span><button onClick={() => setDebugLog([])}>Clear</button></div>
                {debugLog.length === 0 && <div className="text-slate-600 italic">No events recorded...</div>}
-               {debugLog.map((log, i) => <div key={i} className="truncate border-b border-white/5 py-1">>> {log}</div>)}
+               {debugLog.map((log, i) => <div key={i} className="truncate border-b border-white/5 py-1">{'>>'} {log}</div>)}
              </div>
           )}
           
