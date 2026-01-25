@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { X, Settings, Palette, Clock, SortAsc, CheckCircle } from 'lucide-react';
+import { X, Settings, Palette, Clock, SortAsc, RefreshCcw, Layers } from 'lucide-react';
 import { StepName, UserConfig, SortMode } from '../types';
 
 interface ConfigModalProps {
@@ -64,17 +63,65 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                   className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}
                 />
               </div>
-              <div className="md:col-span-2 flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
-                 <input 
-                  type="checkbox" 
-                  id="keepColor"
-                  checked={config.keepColorOnDone}
-                  onChange={(e) => onUpdate({...config, keepColorOnDone: e.target.checked})}
-                  className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                 />
-                 <label htmlFor="keepColor" className="text-sm font-medium">
-                   Keep original task color when completed (show tick only)
-                 </label>
+              
+              <div className="md:col-span-2 space-y-3">
+                <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                   <input 
+                    type="checkbox" 
+                    id="keepColor"
+                    checked={config.keepColorOnDone}
+                    onChange={(e) => onUpdate({...config, keepColorOnDone: e.target.checked})}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                   />
+                   <label htmlFor="keepColor" className="text-sm font-medium">
+                     Keep original task color when completed (show tick only)
+                   </label>
+                </div>
+
+                <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                   <RefreshCcw size={18} className="text-blue-500" />
+                   <div className="flex-grow">
+                     <label htmlFor="autoRegen" className="text-sm font-bold block">Auto-generate next visit (12m delay)</label>
+                     <span className="text-[10px] text-slate-500">Adds "(V2)", "(V3)" etc. when a site's revisit is complete.</span>
+                   </div>
+                   <input 
+                    type="checkbox" 
+                    id="autoRegen"
+                    checked={config.autoRegenerateVisit}
+                    onChange={(e) => onUpdate({...config, autoRegenerateVisit: e.target.checked})}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                   />
+                </div>
+
+                {/* Fixed undefined isConfirmed variable error */}
+                <div className="flex flex-col gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                   <div className="flex items-center gap-3">
+                     <Layers size={18} className="text-slate-500" />
+                     <div className="flex-grow">
+                       <label htmlFor="greyOutComplete" className="text-sm font-bold block">Grey-out completed sites</label>
+                       <span className="text-[10px] text-slate-500">Changes bar color to the selection below once all 5 steps are done.</span>
+                     </div>
+                     <input 
+                      type="checkbox" 
+                      id="greyOutComplete"
+                      checked={config.colorCompleteSitesGrey}
+                      onChange={(e) => onUpdate({...config, colorCompleteSitesGrey: e.target.checked})}
+                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                     />
+                   </div>
+                   {config.colorCompleteSitesGrey && (
+                     <div className="flex items-center gap-4 mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                       <span className="text-xs font-bold uppercase tracking-tighter">Color:</span>
+                       <input 
+                         type="color" 
+                         value={config.completeSiteColor} 
+                         onChange={(e) => onUpdate({...config, completeSiteColor: e.target.value})}
+                         className="w-10 h-6 rounded cursor-pointer border-none bg-transparent"
+                       />
+                       <span className="text-[10px] font-mono text-slate-500 uppercase">{config.completeSiteColor}</span>
+                     </div>
+                   )}
+                </div>
               </div>
             </div>
           </section>

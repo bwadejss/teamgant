@@ -1,4 +1,3 @@
-
 import { parseISO, startOfDay, addDays } from 'date-fns';
 import { Site, Holiday, SiteStatus, StepName, Step, UserConfig } from '../types';
 import { isWorkingDay, addWorkdays, getWorkingDayOnOrAfter, calculateRevisitDate } from '../utils/dateUtils';
@@ -81,24 +80,20 @@ export class SchedulingEngine {
   public scheduleAll(sites: Site[]): Site[] {
     this.capacityUsage.forEach(map => map.clear());
     
-    // Sort logic moved into SchedulingEngine to ensure capacity is reserved in correct order
     const sortedSites = [...sites].sort((a, b) => {
-      // Always prioritize BOOKED over TBC
       if (a.status === SiteStatus.BOOKED && b.status === SiteStatus.TBC) return -1;
       if (a.status === SiteStatus.TBC && b.status === SiteStatus.BOOKED) return 1;
 
       if (this.config.sortMode === 'Name') {
         return a.name.localeCompare(b.name);
       } else if (this.config.sortMode === 'Date') {
-        // If booked, use booked date, otherwise creation/order
         const aDate = a.bookedStartDate ? parseISO(a.bookedStartDate).getTime() : a.createdAt;
         const bDate = b.bookedStartDate ? parseISO(b.bookedStartDate).getTime() : b.createdAt;
         return aDate - bDate;
       }
       
-      // Default: Creation order (original behavior)
-      if (a.status === SiteStatus.BOOKED && b.status === SiteStatus.BOOKED) {
-        return parseISO(a.bookedStartDate!).getTime() - parseISO(b.bookedStartDate!).getTime();
+      if (a.status === SiteStatus.BOOKED && b.status === SiteStatus.BOOKED && a.bookedStartDate && b.bookedStartDate) {
+        return parseISO(a.bookedStartDate).getTime() - parseISO(b.bookedStartDate).getTime();
       }
       return a.order - b.order;
     });
@@ -119,8 +114,8 @@ export class SchedulingEngine {
         return step?.done === true;
       });
 
-      let lastFinish: Date = site.status === SiteStatus.BOOKED 
-        ? parseISO(site.bookedStartDate!) 
+      let lastFinish: Date = site.status === SiteStatus.BOOKED && site.bookedStartDate
+        ? parseISO(site.bookedStartDate) 
         : getWorkingDayOnOrAfter(new Date(), this.holidays);
 
       let finalPresentationFinish: string | null = null;
@@ -134,6 +129,7 @@ export class SchedulingEngine {
         let start: Date;
         let finish: Date;
 
+        // Manual Start Date just pins the date, doesn't force color
         if (existingStep?.done || existingStep?.manualStartDate) {
           const lockDate = existingStep.manualStartDate || existingStep.startDate;
           start = getWorkingDayOnOrAfter(parseISO(lockDate), this.holidays);
@@ -150,7 +146,9 @@ export class SchedulingEngine {
           finish = range.finish;
         }
 
-        const isTentative = site.status === SiteStatus.TBC || (stepName === StepName.REVISIT && !existingStep?.manualStartDate);
+        // UPDATED: A step is TBC (hatched) if its isConfirmed flag is false.
+        const isConfirmed = existingStep?.isConfirmed ?? false;
+        const isTentative = !isConfirmed;
 
         updatedSteps.push({
           id: existingStep?.id || `${site.id}-${stepName}`,
@@ -162,6 +160,7 @@ export class SchedulingEngine {
           done: existingStep?.done ?? false,
           locked: existingStep?.locked ?? false,
           isTentative: isTentative,
+          isConfirmed: isConfirmed,
           manualStartDate: existingStep?.manualStartDate
         });
 

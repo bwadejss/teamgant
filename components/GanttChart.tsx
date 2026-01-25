@@ -1,4 +1,3 @@
-
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Site, Step, Holiday, ViewMode, StepName, UserConfig } from '../types';
 import { MAX_CAPACITY, ROW_HEIGHT } from '../constants';
@@ -178,37 +177,43 @@ const GanttChart: React.FC<GanttChartProps> = ({
             ))}
           </div>
 
-          {rows.map((row) => (
-            <div 
-              key={`${row.site.id}-${row.step?.name || 'header'}`} 
-              onMouseEnter={() => setHoveredRowIndex(row.rowIndex)}
-              onMouseLeave={() => setHoveredRowIndex(null)}
-              className={`relative transition-colors border-b flex items-center
-                ${isDarkMode ? 'border-slate-800/50' : 'border-slate-100'}
-                ${hoveredRowIndex === row.rowIndex ? (isDarkMode ? 'bg-slate-800/40' : 'bg-blue-50/50') : ''}
-                ${row.step?.done ? (isDarkMode ? 'bg-emerald-950/10' : 'bg-emerald-50/30') : ''}`} 
-              style={{ height: ROW_HEIGHT }}
-            >
-              {row.step && (
-                <div 
-                  onClick={() => setSelectedBar({ site: row.site, step: row.step! })}
-                  className={`absolute top-2 bottom-2 rounded cursor-pointer flex items-center px-2 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95
-                    ${row.step.isTentative ? 'bg-slate-500/80 diagonal-stripe' : ''} 
-                    ${row.step.done && !userConfig.keepColorOnDone ? 'bg-emerald-600 ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900 shadow-xl scale-[1.01]' : ''} 
-                    ${!row.step.done && isBefore(parseISO(row.step.finishDate), startOfDay(new Date())) ? 'ring-2 ring-red-500 ring-offset-1 ring-offset-slate-900' : ''}
-                  `}
-                  style={{ 
-                    left: getPosition(row.step.startDate), 
-                    width: Math.max(8, getWidth(row.step.startDate, row.step.finishDate)),
-                    backgroundColor: (!row.step.done || userConfig.keepColorOnDone) && !row.step.isTentative ? userConfig.stepColors[row.step.name] : undefined
-                  }}
-                >
-                  <span className="truncate pr-1">{row.step.name}</span>
-                  {row.step.done && <Check size={12} strokeWidth={3} className="ml-auto" />}
-                </div>
-              )}
-            </div>
-          ))}
+          {rows.map((row) => {
+            const siteFullyComplete = userConfig.colorCompleteSitesGrey && row.site.steps.length === 5 && row.site.steps.every(s => s.done);
+            
+            return (
+              <div 
+                key={`${row.site.id}-${row.step?.name || 'header'}`} 
+                onMouseEnter={() => setHoveredRowIndex(row.rowIndex)}
+                onMouseLeave={() => setHoveredRowIndex(null)}
+                className={`relative transition-colors border-b flex items-center
+                  ${isDarkMode ? 'border-slate-800/50' : 'border-slate-100'}
+                  ${hoveredRowIndex === row.rowIndex ? (isDarkMode ? 'bg-slate-800/40' : 'bg-blue-50/50') : ''}
+                  ${row.step?.done ? (isDarkMode ? 'bg-emerald-950/10' : 'bg-emerald-50/30') : ''}`} 
+                style={{ height: ROW_HEIGHT }}
+              >
+                {row.step && (
+                  <div 
+                    onClick={() => setSelectedBar({ site: row.site, step: row.step! })}
+                    className={`absolute top-2 bottom-2 rounded cursor-pointer flex items-center px-2 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95
+                      ${row.step.isTentative ? 'bg-slate-500/80 diagonal-stripe' : ''} 
+                      ${row.step.done && !userConfig.keepColorOnDone && !siteFullyComplete ? 'bg-emerald-600 ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900 shadow-xl scale-[1.01]' : ''} 
+                      ${!row.step.done && isBefore(parseISO(row.step.finishDate), startOfDay(new Date())) ? 'ring-2 ring-red-500 ring-offset-1 ring-offset-slate-900' : ''}
+                    `}
+                    style={{ 
+                      left: getPosition(row.step.startDate), 
+                      width: Math.max(8, getWidth(row.step.startDate, row.step.finishDate)),
+                      backgroundColor: siteFullyComplete 
+                        ? userConfig.completeSiteColor 
+                        : ((!row.step.done || userConfig.keepColorOnDone) && !row.step.isTentative ? userConfig.stepColors[row.step.name] : undefined)
+                    }}
+                  >
+                    <span className="truncate pr-1">{row.step.name}</span>
+                    {row.step.done && <Check size={12} strokeWidth={3} className="ml-auto" />}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 

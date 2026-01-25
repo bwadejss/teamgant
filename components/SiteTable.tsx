@@ -14,12 +14,37 @@ interface SiteTableProps {
   setHoveredRowIndex: (idx: number | null) => void;
   onUpdateStepDate: (siteId: string, stepName: StepName, newDate: string) => void;
   onUpdateStepDuration: (siteId: string, stepName: StepName, duration: number) => void;
+  onToggleSiteStatus: (siteId: string) => void;
+  onToggleStepConfirmation: (siteId: string, stepName: StepName) => void;
   isDarkMode: boolean;
 }
 
-/**
- * Custom Duration Stepper to fix native input hit-box issues in preview mode.
- */
+const ConfirmationSwitch: React.FC<{
+  isOn: boolean;
+  onToggle: (e: React.MouseEvent) => void;
+  isDarkMode: boolean;
+  label?: string;
+  size?: 'sm' | 'md';
+}> = ({ isOn, onToggle, isDarkMode, label, size = 'md' }) => {
+  return (
+    <div 
+      className="flex items-center gap-2 cursor-pointer group"
+      onClick={onToggle}
+    >
+      <div className={`relative rounded-full transition-colors flex items-center
+        ${size === 'md' ? 'w-8 h-4.5' : 'w-7 h-4'}
+        ${isOn ? 'bg-blue-500' : (isDarkMode ? 'bg-slate-700' : 'bg-slate-300')}`}
+      >
+        <div className={`absolute rounded-full bg-white shadow-sm transition-all transform
+          ${size === 'md' ? 'w-3.5 h-3.5' : 'w-3 h-3'}
+          ${isOn ? (size === 'md' ? 'translate-x-4' : 'translate-x-3.5') : 'translate-x-0.5'}`} 
+        />
+      </div>
+      {label && <span className={`text-[9px] font-bold uppercase tracking-tight ${isOn ? 'text-blue-500' : 'text-slate-500'}`}>{label}</span>}
+    </div>
+  );
+};
+
 const DurationStepper: React.FC<{
   value: number;
   taskName: string;
@@ -28,7 +53,6 @@ const DurationStepper: React.FC<{
 }> = ({ value, taskName, onChange, isDarkMode }) => {
   const [localVal, setLocalVal] = useState(String(value));
 
-  // Sync with prop updates
   useEffect(() => {
     setLocalVal(String(value));
   }, [value]);
@@ -36,69 +60,29 @@ const DurationStepper: React.FC<{
   const commitValue = (v: string) => {
     const parsed = parseInt(v);
     if (!isNaN(parsed) && parsed > 0) {
-      console.log(`[UI DEBUG] Committing duration ${parsed} for ${taskName}`);
       onChange(parsed);
     } else {
       setLocalVal(String(value));
     }
   };
 
-  const handleBlur = () => {
-    commitValue(localVal);
-  };
+  const handleBlur = () => commitValue(localVal);
 
   const handleIncrement = (e: React.MouseEvent) => {
     e.stopPropagation();
-    e.preventDefault();
-    console.log(`[UI DEBUG] Plus clicked for ${taskName}, current val: ${value}`);
     onChange(value + 1);
   };
 
   const handleDecrement = (e: React.MouseEvent) => {
     e.stopPropagation();
-    e.preventDefault();
-    console.log(`[UI DEBUG] Minus clicked for ${taskName}, current val: ${value}`);
-    if (value > 1) {
-      onChange(value - 1);
-    }
+    if (value > 1) onChange(value - 1);
   };
 
   return (
-    <div 
-      className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-300 dark:border-slate-700 overflow-hidden shadow-sm"
-      onClick={(e) => e.stopPropagation()} // Stop row expansion
-    >
-      <button 
-        type="button" 
-        onMouseDown={(e) => e.stopPropagation()} // Stop browser from focusing elsewhere
-        onClick={handleDecrement}
-        className="w-7 h-7 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 border-r border-slate-300 dark:border-slate-700 transition-colors active:bg-slate-300 dark:active:bg-slate-600"
-      >
-        <Minus size={14} />
-      </button>
-      <input 
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        value={localVal}
-        onChange={(e) => {
-          e.stopPropagation();
-          setLocalVal(e.target.value);
-        }}
-        onBlur={handleBlur}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commitValue(localVal);
-        }}
-        className={`w-10 text-center bg-transparent border-none p-0 focus:ring-0 text-[11px] font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}
-      />
-      <button 
-        type="button" 
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={handleIncrement}
-        className="w-7 h-7 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 border-l border-slate-300 dark:border-slate-700 transition-colors active:bg-slate-300 dark:active:bg-slate-600"
-      >
-        <Plus size={14} />
-      </button>
+    <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-300 dark:border-slate-700 overflow-hidden shadow-sm" onClick={(e) => e.stopPropagation()}>
+      <button onClick={handleDecrement} className="w-7 h-7 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 border-r border-slate-300 dark:border-slate-700 transition-colors"><Minus size={14} /></button>
+      <input type="text" value={localVal} onChange={(e) => setLocalVal(e.target.value)} onBlur={handleBlur} className={`w-10 text-center bg-transparent border-none p-0 focus:ring-0 text-[11px] font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`} />
+      <button onClick={handleIncrement} className="w-7 h-7 flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 border-l border-slate-300 dark:border-slate-700 transition-colors"><Plus size={14} /></button>
     </div>
   );
 };
@@ -113,6 +97,8 @@ const SiteTable: React.FC<SiteTableProps> = ({
   setHoveredRowIndex,
   onUpdateStepDate,
   onUpdateStepDuration,
+  onToggleSiteStatus,
+  onToggleStepConfirmation,
   isDarkMode
 }) => {
   const toggleExpand = (id: string) => {
@@ -131,7 +117,7 @@ const SiteTable: React.FC<SiteTableProps> = ({
   };
 
   return (
-    <div className={`flex-none w-[380px] border-r transition-colors relative z-10 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
+    <div className={`flex-none w-[410px] border-r transition-colors relative z-10 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
       <div className={`sticky top-0 z-30 flex flex-col border-b border-slate-200/10 ${isDarkMode ? 'bg-slate-950 text-slate-500' : 'bg-slate-100 text-slate-500'}`} style={{ height: ROW_HEIGHT * 2 }}>
         <div className="flex-grow flex items-center justify-center text-[10px] font-bold uppercase tracking-widest border-b border-slate-200/5">Project List</div>
         <div className="flex h-1/2">
@@ -147,6 +133,13 @@ const SiteTable: React.FC<SiteTableProps> = ({
           const site = row.site;
           const step = row.step;
           const done = step?.done || false;
+
+          // Confirmed state logic:
+          // For Site: If all steps in the site are confirmed.
+          // For Step: Based on its explicit confirmed flag.
+          const isConfirmed = isSiteRow 
+            ? (site.steps.length > 0 && site.steps.every(s => !!s.isConfirmed))
+            : !!step?.isConfirmed;
           
           return (
             <div 
@@ -161,13 +154,8 @@ const SiteTable: React.FC<SiteTableProps> = ({
                 ${!isSiteRow ? (isDarkMode ? 'bg-slate-900/40' : 'bg-slate-50/50') : ''}
               `} 
             >
-              {/* Row Label (Handle expand/collapse) */}
-              <div 
-                className="flex flex-grow items-center h-full min-w-0"
-                onClick={() => isSiteRow && toggleExpand(site.id)}
-              >
-                {/* Left Column Icon */}
-                <div className="w-10 flex items-center justify-center flex-none h-full cursor-pointer hover:bg-white/5 transition-colors">
+              <div className="flex flex-grow items-center h-full min-w-0">
+                <div className="w-10 flex items-center justify-center flex-none h-full cursor-pointer hover:bg-white/5 transition-colors" onClick={() => isSiteRow && toggleExpand(site.id)}>
                   {isSiteRow ? (
                     expandedSites.has(site.id) ? <ChevronDown size={14} className="text-slate-400" /> : <ChevronRight size={14} className="text-slate-400" />
                   ) : (
@@ -175,70 +163,70 @@ const SiteTable: React.FC<SiteTableProps> = ({
                   )}
                 </div>
 
-                {/* Main Text Area */}
-                <div className="flex-grow px-3 overflow-hidden flex flex-col justify-center cursor-pointer">
+                <div className="flex-grow px-3 overflow-hidden flex flex-col justify-center min-w-0">
                   {isSiteRow ? (
-                    <>
-                      <div className={`font-bold truncate text-xs ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>{site.name}</div>
-                      <div className="text-[9px] text-slate-500 font-normal truncate uppercase tracking-tighter opacity-70">
-                        {site.owner} • {site.status}
+                    <div className="flex items-center justify-between gap-2 overflow-hidden">
+                      <div className="truncate min-w-0 cursor-pointer flex-grow" onClick={() => toggleExpand(site.id)}>
+                        <div className={`font-bold truncate text-xs ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>{site.name}</div>
+                        <div className="text-[9px] text-slate-500 font-normal truncate uppercase tracking-tighter opacity-70">
+                          {site.owner}
+                        </div>
                       </div>
-                    </>
+                      <ConfirmationSwitch 
+                        isOn={isConfirmed} 
+                        onToggle={(e) => { e.stopPropagation(); onToggleSiteStatus(site.id); }}
+                        isDarkMode={isDarkMode}
+                        label={isConfirmed ? "Confirmed" : "TBC"}
+                      />
+                    </div>
                   ) : (
                     <>
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center justify-between mb-1 min-w-0">
                         <span className={`text-[11px] font-semibold truncate ${done ? 'text-emerald-500 font-bold' : (isDarkMode ? 'text-slate-300' : 'text-slate-700')}`}>
                           {step!.name}
                         </span>
+                        <ConfirmationSwitch 
+                          isOn={isConfirmed}
+                          size="sm"
+                          onToggle={(e) => { e.stopPropagation(); onToggleStepConfirmation(site.id, step!.name); }}
+                          isDarkMode={isDarkMode}
+                          label={isConfirmed ? "Confirmed" : "TBC"}
+                        />
                       </div>
                       
-                      {/* Controls Row (Separate from text click) */}
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        {/* Date Picker */}
-                        <div className="text-[9px] text-slate-500 flex items-center gap-1 border border-transparent hover:border-blue-500/20 rounded transition-all px-1 bg-white/5">
-                          <Calendar size={10} className="opacity-50" />
+                        <div className={`text-[9px] flex items-center gap-1 border border-transparent rounded transition-all px-1 bg-white/5 ${isConfirmed ? 'border-blue-500/30' : ''}`}>
+                          <Calendar size={10} className={isConfirmed ? 'text-blue-500' : 'opacity-50'} />
                           <input 
                             type="date" 
-                            onFocus={(e) => e.target.select()}
-                            className={`bg-transparent border-none p-0 focus:ring-0 text-[9px] cursor-text hover:text-blue-500 transition-colors font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}
+                            className={`bg-transparent border-none p-0 focus:ring-0 text-[9px] font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'} ${isConfirmed ? 'text-blue-500' : ''}`}
                             value={parseISO(step!.startDate).toISOString().split('T')[0]}
                             onChange={(e) => handleDateChange(site.id, step!.name, e.target.value)}
                           />
                         </div>
                         
-                        {/* Duration Custom Stepper */}
                         <DurationStepper 
                           value={step!.durationWorkdays} 
                           taskName={step!.name}
                           isDarkMode={isDarkMode}
                           onChange={(val) => onUpdateStepDuration(site.id, step!.name, val)}
                         />
-                        
-                        <span className="text-[9px] text-slate-500 opacity-40 uppercase font-bold tracking-tighter">days</span>
                       </div>
                     </>
                   )}
                 </div>
               </div>
 
-              {/* Right Column: Actions */}
               <div className="w-12 flex items-center justify-center flex-none pr-1">
                 {isSiteRow ? (
-                  <button 
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onRemoveSite(site.id); }} 
-                    className="text-slate-400 hover:text-red-500 transition-all p-2 rounded-lg hover:bg-red-500/10 active:scale-75"
-                  >
+                  <button onClick={(e) => { e.stopPropagation(); onRemoveSite(site.id); }} className="text-slate-400 hover:text-red-500 transition-all p-2 rounded-lg hover:bg-red-500/10 active:scale-75">
                     <Trash2 size={16} />
                   </button>
                 ) : (
-                  <button 
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onToggleStepDone(site.id, step!.name); }}
-                    className={`p-1.5 rounded-full transition-all flex items-center justify-center shadow-sm
-                      ${done 
-                        ? 'bg-emerald-500 text-white hover:bg-emerald-400 scale-105 shadow-emerald-500/30' 
-                        : (isDarkMode ? 'bg-slate-800 text-slate-500 hover:text-blue-400 border border-slate-700' : 'bg-slate-100 text-slate-400 hover:text-blue-600 border border-slate-200')}`}
+                  <button onClick={(e) => { e.stopPropagation(); onToggleStepDone(site.id, step!.name); }} className={`p-1.5 rounded-full transition-all flex items-center justify-center shadow-sm
+                    ${done 
+                      ? 'bg-emerald-500 text-white hover:bg-emerald-400 scale-105 shadow-emerald-500/30' 
+                      : (isDarkMode ? 'bg-slate-800 text-slate-500 hover:text-blue-400 border border-slate-700' : 'bg-slate-100 text-slate-400 hover:text-blue-600 border border-slate-200')}`}
                   >
                     {done ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                   </button>

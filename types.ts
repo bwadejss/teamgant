@@ -1,4 +1,3 @@
-
 export enum SiteStatus {
   BOOKED = 'Booked',
   TBC = 'TBC'
@@ -22,6 +21,7 @@ export interface Step {
   done: boolean;
   locked?: boolean;
   isTentative?: boolean;
+  isConfirmed?: boolean; // New: Decouples "pinned date" from "status"
   manualStartDate?: string; // ISO String override
 }
 
@@ -53,6 +53,10 @@ export interface UserConfig {
   keepColorOnDone: boolean;
   revisitOffsetMonths: number;
   sortMode: SortMode;
+  // New settings
+  autoRegenerateVisit: boolean;
+  colorCompleteSitesGrey: boolean;
+  completeSiteColor: string;
 }
 
 export interface CalendarSlot {

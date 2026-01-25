@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Site, Holiday, ViewMode, SiteStatus, StepName, UserConfig } from './types';
+import { Site, Holiday, ViewMode, SiteStatus, StepName, UserConfig, Step } from './types';
 import SiteTable from './components/SiteTable';
 import GanttChart from './components/GanttChart';
 import AddSiteForm from './components/AddSiteForm';
@@ -11,9 +11,10 @@ import { SchedulingEngine } from './engine/scheduling';
 import { exportToExcel } from './utils/excelExport';
 import { importFromExcel } from './utils/excelImport';
 import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS } from './constants';
+import { addMonths, parseISO } from 'date-fns';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings } from 'lucide-react';
 
-const APP_VERSION = "v1.3.2";
+const APP_VERSION = "v1.6.0";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -31,7 +32,10 @@ const INITIAL_CONFIG: UserConfig = {
   defaultDurations: DEFAULT_DURATIONS,
   keepColorOnDone: false,
   revisitOffsetMonths: 3,
-  sortMode: 'Creation'
+  sortMode: 'Creation',
+  autoRegenerateVisit: true,
+  colorCompleteSitesGrey: true,
+  completeSiteColor: '#475569' // slate-600
 };
 
 const App: React.FC = () => {
@@ -112,6 +116,182 @@ const App: React.FC = () => {
     localStorage.setItem('sitework_sites', JSON.stringify(newSites));
   }, []);
 
+  const handleToggleSiteStatus = (siteId: string) => {
+    const scheduled = scheduledSites.find(s => s.id === siteId);
+    if (!scheduled) return;
+
+    const newSites = sites.map(site => {
+      if (site.id === siteId) {
+        const currentlyAllConfirmed = site.steps.length > 0 && site.steps.every(s => !!s.isConfirmed);
+        const newSiteStatus = currentlyAllConfirmed ? SiteStatus.TBC : SiteStatus.BOOKED;
+        
+        // If site becomes Booked (Confirmed toggle on), set all steps to confirmed + lock dates
+        // If site becomes TBC (Confirmed toggle off), set all steps to TBC + unlock dates
+        const updatedSteps = scheduled.steps.map(s => {
+          const originalStep = site.steps.find(os => os.name === s.name);
+          return {
+            ...(originalStep || s),
+            isConfirmed: !currentlyAllConfirmed,
+            manualStartDate: !currentlyAllConfirmed ? s.startDate : undefined
+          };
+        });
+
+        return { 
+          ...site, 
+          status: newSiteStatus, 
+          steps: updatedSteps,
+          bookedStartDate: !currentlyAllConfirmed ? (site.bookedStartDate || scheduled.steps[0]?.startDate) : undefined
+        };
+      }
+      return site;
+    });
+    saveSites(newSites);
+  };
+
+  const handleToggleStepConfirmation = (siteId: string, stepName: StepName) => {
+    const newSites = sites.map(site => {
+      if (site.id === siteId) {
+        const stepIdx = site.steps.findIndex(s => s.name === stepName);
+        let newSteps = [...site.steps];
+        const currentScheduled = scheduledSites.find(s => s.id === siteId)?.steps.find(st => st.name === stepName);
+        
+        if (stepIdx > -1) {
+          const step = newSteps[stepIdx];
+          const newConfirmedState = !step.isConfirmed;
+          newSteps[stepIdx] = { 
+            ...step, 
+            isConfirmed: newConfirmedState,
+            manualStartDate: newConfirmedState ? (step.manualStartDate || currentScheduled?.startDate) : step.manualStartDate
+          };
+        } else {
+          newSteps.push({
+            id: `${siteId}-${stepName}`,
+            siteId,
+            name: stepName,
+            done: false,
+            isConfirmed: true,
+            durationWorkdays: config.defaultDurations[stepName],
+            startDate: currentScheduled?.startDate || '',
+            finishDate: currentScheduled?.finishDate || '',
+            manualStartDate: currentScheduled?.startDate || new Date().toISOString()
+          });
+        }
+        return { ...site, steps: newSteps };
+      }
+      return site;
+    });
+    saveSites(newSites);
+  };
+
+  const handleToggleStepDone = (siteId: string, stepName: StepName) => {
+    const currentScheduledSite = scheduledSites.find(s => s.id === siteId);
+    const currentScheduledStep = currentScheduledSite?.steps.find(st => st.name === stepName);
+    if (!currentScheduledSite || !currentScheduledStep) return;
+
+    let sitesToSave = sites.map(site => {
+      if (site.id === siteId) {
+        const stepIdx = site.steps.findIndex(s => s.name === stepName);
+        let newSteps = [...site.steps];
+        
+        if (stepIdx > -1) {
+          const isMarkingDone = !newSteps[stepIdx].done;
+          newSteps[stepIdx] = { 
+            ...newSteps[stepIdx], 
+            done: isMarkingDone,
+            manualStartDate: isMarkingDone ? (currentScheduledStep.startDate || newSteps[stepIdx].manualStartDate) : newSteps[stepIdx].manualStartDate,
+            durationWorkdays: isMarkingDone ? (currentScheduledStep.durationWorkdays || newSteps[stepIdx].durationWorkdays) : newSteps[stepIdx].durationWorkdays
+          };
+        } else {
+          newSteps.push({ 
+            id: `${siteId}-${stepName}`, 
+            siteId, 
+            name: stepName, 
+            done: true, 
+            isConfirmed: true,
+            durationWorkdays: currentScheduledStep.durationWorkdays || 1, 
+            startDate: currentScheduledStep.startDate || new Date().toISOString(), 
+            finishDate: currentScheduledStep.finishDate || new Date().toISOString(),
+            manualStartDate: currentScheduledStep.startDate
+          });
+        }
+        return { ...site, steps: newSteps };
+      }
+      return site;
+    });
+
+    // Check for auto-regeneration if Revisit is marked done
+    if (stepName === StepName.REVISIT && config.autoRegenerateVisit) {
+      const site = sitesToSave.find(s => s.id === siteId);
+      const revisitStep = site?.steps.find(st => st.name === StepName.REVISIT);
+      
+      if (site && revisitStep?.done) {
+        addLog(`Final step complete for ${site.name}. Generating next visit...`);
+        
+        // Extract base name and version
+        // Logic: "Site Name (WTW)" -> "Site Name (WTW) (V2)" -> "Site Name (WTW) (V3)"
+        let baseName = site.name;
+        let versionNumber = 2;
+        const vMatch = site.name.match(/\(V(\d+)\)$/);
+        
+        if (vMatch) {
+          versionNumber = parseInt(vMatch[1]) + 1;
+          baseName = site.name.replace(/\s*\(V\d+\)$/, "");
+        }
+        
+        const newSiteName = `${baseName} (V${versionNumber})`;
+        const nextVisitStartDate = addMonths(parseISO(revisitStep.finishDate), 12);
+        
+        const nextSiteId = Math.random().toString(36).substr(2, 9);
+        const newSite: Site = {
+          id: nextSiteId,
+          name: newSiteName,
+          owner: site.owner,
+          status: SiteStatus.TBC,
+          bookedStartDate: nextVisitStartDate.toISOString(),
+          createdAt: Date.now(),
+          notes: '',
+          steps: [],
+          order: sites.length,
+          customDurations: site.customDurations
+        };
+        
+        sitesToSave = [...sitesToSave, newSite];
+        addLog(`Added ${newSiteName} to schedule.`);
+      }
+    }
+
+    saveSites(sitesToSave);
+  };
+
+  const handleUpdateStepDate = (siteId: string, stepName: StepName, newDate: string) => {
+    addLog(`Date Update Triggered: ${siteId} - ${stepName} -> ${newDate}`);
+    const newSites = sites.map(site => {
+      if (site.id === siteId) {
+        const stepIdx = site.steps.findIndex(s => s.name === stepName);
+        let newSteps = [...site.steps];
+        if (stepIdx > -1) {
+          // Note: per user request, changing calendar date doesn't force toggle to 'confirmed'
+          newSteps[stepIdx] = { ...newSteps[stepIdx], manualStartDate: newDate };
+        } else {
+          newSteps.push({ 
+            id: `${siteId}-${stepName}`, 
+            siteId, 
+            name: stepName, 
+            done: false, 
+            isConfirmed: false,
+            durationWorkdays: config.defaultDurations[stepName], 
+            startDate: '', 
+            finishDate: '', 
+            manualStartDate: newDate 
+          });
+        }
+        return { ...site, steps: newSteps };
+      }
+      return site;
+    });
+    saveSites(newSites);
+  };
+
   const saveConfig = useCallback((newConfig: UserConfig) => {
     setConfig(newConfig);
     localStorage.setItem('sitework_config', JSON.stringify(newConfig));
@@ -158,11 +338,32 @@ const App: React.FC = () => {
   };
 
   const handleAddSite = (siteData: Partial<Site>) => {
+    const newId = Math.random().toString(36).substr(2, 9);
+    let initialSteps: Step[] = [];
+    
+    if (siteData.status === SiteStatus.BOOKED) {
+      const engine = new SchedulingEngine(holidays, config);
+      const tempSite: Site = { 
+        ...siteData as Site, 
+        id: newId, 
+        order: sites.length, 
+        steps: [] 
+      };
+      const scheduled = engine.scheduleAll([...sites, tempSite]).find(s => s.id === newId);
+      if (scheduled) {
+        initialSteps = scheduled.steps.map(s => ({
+          ...s,
+          isConfirmed: true,
+          manualStartDate: s.startDate 
+        }));
+      }
+    }
+
     const newSite: Site = {
       ...siteData as Site,
-      id: Math.random().toString(36).substr(2, 9),
+      id: newId,
       order: sites.length,
-      steps: []
+      steps: initialSteps
     };
     saveSites([...sites, newSite]);
     setExpandedSites(prev => new Set([...Array.from(prev), newSite.id]));
@@ -179,69 +380,6 @@ const App: React.FC = () => {
       return next;
     });
     setSiteToDelete(null);
-  };
-
-  const handleToggleStepDone = (siteId: string, stepName: StepName) => {
-    const currentScheduledSite = scheduledSites.find(s => s.id === siteId);
-    const currentScheduledStep = currentScheduledSite?.steps.find(st => st.name === stepName);
-
-    const newSites = sites.map(site => {
-      if (site.id === siteId) {
-        const stepIdx = site.steps.findIndex(s => s.name === stepName);
-        let newSteps = [...site.steps];
-        
-        if (stepIdx > -1) {
-          const isMarkingDone = !newSteps[stepIdx].done;
-          newSteps[stepIdx] = { 
-            ...newSteps[stepIdx], 
-            done: isMarkingDone,
-            manualStartDate: isMarkingDone ? (currentScheduledStep?.startDate || newSteps[stepIdx].manualStartDate) : newSteps[stepIdx].manualStartDate,
-            durationWorkdays: isMarkingDone ? (currentScheduledStep?.durationWorkdays || newSteps[stepIdx].durationWorkdays) : newSteps[stepIdx].durationWorkdays
-          };
-        } else {
-          newSteps.push({ 
-            id: `${siteId}-${stepName}`, 
-            siteId, 
-            name: stepName, 
-            done: true, 
-            durationWorkdays: currentScheduledStep?.durationWorkdays || 1, 
-            startDate: currentScheduledStep?.startDate || new Date().toISOString(), 
-            finishDate: currentScheduledStep?.finishDate || new Date().toISOString(),
-            manualStartDate: currentScheduledStep?.startDate
-          });
-        }
-        return { ...site, steps: newSteps };
-      }
-      return site;
-    });
-    saveSites(newSites);
-  };
-
-  const handleUpdateStepDate = (siteId: string, stepName: StepName, newDate: string) => {
-    addLog(`Date Update Triggered: ${siteId} - ${stepName} -> ${newDate}`);
-    const newSites = sites.map(site => {
-      if (site.id === siteId) {
-        const stepIdx = site.steps.findIndex(s => s.name === stepName);
-        let newSteps = [...site.steps];
-        if (stepIdx > -1) {
-          newSteps[stepIdx] = { ...newSteps[stepIdx], manualStartDate: newDate };
-        } else {
-          newSteps.push({ 
-            id: `${siteId}-${stepName}`, 
-            siteId, 
-            name: stepName, 
-            done: false, 
-            durationWorkdays: config.defaultDurations[stepName], 
-            startDate: '', 
-            finishDate: '', 
-            manualStartDate: newDate 
-          });
-        }
-        return { ...site, steps: newSteps };
-      }
-      return site;
-    });
-    saveSites(newSites);
   };
 
   const handleUpdateStepDuration = (siteId: string, stepName: StepName, duration: number) => {
@@ -391,6 +529,8 @@ const App: React.FC = () => {
               setHoveredRowIndex={setHoveredRowIndex}
               onUpdateStepDate={handleUpdateStepDate}
               onUpdateStepDuration={handleUpdateStepDuration}
+              onToggleSiteStatus={handleToggleSiteStatus}
+              onToggleStepConfirmation={handleToggleStepConfirmation}
               isDarkMode={isDarkMode}
             />
             <GanttChart 
