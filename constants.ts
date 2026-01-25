@@ -14,7 +14,7 @@ export const DEFAULT_STEP_COLORS: Record<StepName, string> = {
   [StepName.SITE_VISIT]: '#10b981', // emerald-500
   [StepName.REPORT_WRITING]: '#d97706', // amber-600
   [StepName.FINAL_PRESENTATION]: '#9333ea', // purple-600
-  [StepName.REVISIT]: '#14b8a6', // teal-600
+  [StepName.REVISIT]: '#ef4444', // red-500 (Changed from teal to red)
 };
 
 // Maximum concurrent tasks allowed per day of each type
@@ -26,4 +26,4 @@ export const MAX_CAPACITY: Record<StepName, number> = {
   [StepName.REVISIT]: 2,
 };
 
-export const ROW_HEIGHT = 56; 
+export const ROW_HEIGHT = 56;
