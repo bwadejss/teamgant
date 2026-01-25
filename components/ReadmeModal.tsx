@@ -24,8 +24,7 @@ const ReadmeModal: React.FC<ReadmeModalProps> = ({ onClose }) => {
             </h3>
             <p>
               The system uses a <strong>deterministic resource-aware engine</strong>. It schedules sites based on their priority (Booked first, then TBC creation order). 
-              Each task type (Pre-work, Visit, Report, etc.) has its own dedicated resource pool. This allows different tasks for different sites to happen simultaneously 
-              in the same week, but prevents two visits or two pre-works from overlapping.
+              Each task type has its own resource pool, allowing different sites to progress through different stages at once.
             </p>
           </section>
 
@@ -34,30 +33,17 @@ const ReadmeModal: React.FC<ReadmeModalProps> = ({ onClose }) => {
               <Calendar size={18} className="text-emerald-500" /> Non-Working Days
             </h3>
             <p>
-              Weekends (Sat-Sun) and user-defined Holidays are automatically excluded. Task durations count only <strong>actual workdays</strong>. 
-              Site Visits are never scheduled on Fridays to maintain team consistency.
-            </p>
-          </section>
-
-          <section>
-            <h3 className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200 mb-2">
-              <CheckCircle size={18} className="text-purple-500" /> Conditional Revisit
-            </h3>
-            <p>
-              The <strong>Revisit</strong> task is unique. It defaults to 3 months after the Final Presentation, but it will only be officially 
-              "scheduled" and locked once all previous steps for that site are marked as <strong>Complete</strong>. Until then, it remains 
-              as a tentative indicator in the timeline.
+              Weekends and user-defined Holidays are automatically excluded. Task durations count only <strong>actual workdays</strong>. 
             </p>
           </section>
 
           <section className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
             <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-1">Quick Tips</h4>
-            <ul className="list-disc list-inside space-y-1 text-xs">
-              <li>Use <strong>Shift + Scroll</strong> to pan left/right on the calendar.</li>
-              <li>You can type <strong>'26'</strong> in date inputs as a shortcut for 2026.</li>
-              {/* Fix: AlertCircle component was missing from the import list */}
-              <li>Hover over the <AlertCircle size={10} className="inline" /> icon to see why a task is overdue.</li>
-              <li>Click any bar on the Gantt chart to quickly toggle its completion status.</li>
+            <ul className="list-disc list-inside space-y-1 text-xs text-slate-700 dark:text-slate-300">
+              <li>Use <strong>Shift + Scroll</strong> to pan the Gantt chart left/right.</li>
+              <li>Type <strong>'26'</strong> in date inputs as a shortcut for 2026.</li>
+              <li>Look for the <AlertCircle size={10} className="inline text-red-500" /> icon to see overdue tasks.</li>
+              <li><strong>Import/Export</strong> Excel files to keep your data safe and share it with others.</li>
             </ul>
           </section>
         </div>

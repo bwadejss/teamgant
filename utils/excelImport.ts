@@ -39,7 +39,7 @@ export const importFromExcel = async (file: File): Promise<ImportResult> => {
               name: row['Site Name'],
               owner: row['Owner'] || 'Unknown',
               status: (row['Status'] as SiteStatus) || SiteStatus.TBC,
-              bookedStartDate: parseUKDate(row['Start Date'])?.toISOString(), // Use first task start as fallback
+              bookedStartDate: parseUKDate(row['Start Date'])?.toISOString(),
               createdAt: Date.now(),
               notes: '',
               steps: [],

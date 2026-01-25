@@ -9,7 +9,7 @@ import ReadmeModal from './components/ReadmeModal';
 import { SchedulingEngine } from './engine/scheduling';
 import { exportToExcel } from './utils/excelExport';
 import { importFromExcel } from './utils/excelImport';
-import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, FileUp } from 'lucide-react';
+import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -83,14 +83,14 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (confirm('Importing will overwrite your current plan. Do you want to continue?')) {
+    if (confirm('Warning: Importing will replace your current schedule. Proceed?')) {
       try {
         const result = await importFromExcel(file);
         setHolidays(result.holidays);
         localStorage.setItem('sitework_holidays', JSON.stringify(result.holidays));
         saveSites(result.sites);
         setExpandedSites(new Set(result.sites.map(s => s.id)));
-        alert('Data successfully imported!');
+        alert('Plan imported successfully!');
       } catch (err: any) {
         alert(err.message);
       }
@@ -222,6 +222,7 @@ const App: React.FC = () => {
             {expandedSites.size === sites.length ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             {expandedSites.size === sites.length ? "Collapse All" : "Expand All"}
           </button>
+          
           <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 mr-2 border border-slate-700">
             {['Day', 'Week', 'Month'].map((m) => (
               <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-2 py-1 text-[10px] font-bold rounded ${viewMode === m ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
@@ -229,11 +230,12 @@ const App: React.FC = () => {
               </button>
             ))}
           </div>
-          <button onClick={() => setShowHolidays(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700">
+
+          <button onClick={() => setShowHolidays(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2">
             <Calendar size={14} /> Holidays
           </button>
           
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 mr-2">
             <button onClick={handleImportClick} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700">
               <Upload size={14} /> Import
             </button>
@@ -244,8 +246,8 @@ const App: React.FC = () => {
           </div>
 
           <button onClick={() => setShowReadme(true)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ml-1"><Info size={18} /></button>
-          <button onClick={toggleDarkMode} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
-          <div className="w-[1px] h-6 bg-slate-700 mx-1" />
+          <button onClick={toggleDarkMode} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ml-1">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
+          <div className="w-[1px] h-6 bg-slate-700 mx-2" />
           <button onClick={() => setShowAddSite(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all text-xs font-bold shadow-xl shadow-blue-500/20 active:scale-95">
             <Plus size={16} /> Add Site
           </button>
@@ -310,7 +312,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Holidays: {holidays.length}</div>
         </div>
         <div className="flex items-center gap-3 italic text-slate-400">
-          <span>Shift + Scroll for Horizontal Panning • Click Row to Toggle Workflow</span>
+          <span>Shift + Scroll for Horizontal Panning • Import/Export Excel for Backups</span>
         </div>
       </footer>
 
