@@ -34,7 +34,6 @@ const SiteTable: React.FC<SiteTableProps> = ({
   const toggleExpand = (id: string, e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest('[data-action-item]')) {
-      e.stopPropagation();
       return;
     }
     
@@ -123,7 +122,7 @@ const SiteTable: React.FC<SiteTableProps> = ({
                           type="number" 
                           min="1"
                           onClick={(e) => e.stopPropagation()}
-                          className={`w-6 bg-transparent border-none p-0 focus:ring-0 text-[9px] cursor-pointer hover:text-blue-500 transition-colors font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}
+                          className={`w-12 bg-white/5 dark:bg-slate-800/50 border border-slate-200/10 rounded px-1 focus:ring-1 focus:ring-blue-500 text-[10px] cursor-pointer hover:text-blue-500 transition-colors font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}
                           value={step!.durationWorkdays}
                           onChange={(e) => onUpdateStepDuration(site.id, step!.name, parseInt(e.target.value) || 1)}
                         />
@@ -141,7 +140,6 @@ const SiteTable: React.FC<SiteTableProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        e.preventDefault();
                         onRemoveSite(site.id);
                       }} 
                       className="text-slate-400 hover:text-red-500 transition-all p-2 rounded-lg hover:bg-red-500/10 active:scale-75"
@@ -154,7 +152,6 @@ const SiteTable: React.FC<SiteTableProps> = ({
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      e.preventDefault();
                       onToggleStepDone(site.id, step!.name);
                     }}
                     className={`p-1.5 rounded-full transition-all flex items-center justify-center shadow-sm
