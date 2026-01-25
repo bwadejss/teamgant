@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Site, Holiday, ViewMode, SiteStatus, StepName, UserConfig, Step } from './types';
+import { Site, Holiday, ViewMode, SiteStatus, StepName, UserConfig, Step, ZoomLevel } from './types';
 import SiteTable from './components/SiteTable';
 import GanttChart from './components/GanttChart';
 import AddSiteForm from './components/AddSiteForm';
@@ -10,11 +10,11 @@ import ConfirmModal from './components/ConfirmModal';
 import { SchedulingEngine } from './engine/scheduling';
 import { exportToExcel } from './utils/excelExport';
 import { importFromExcel } from './utils/excelImport';
-import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS } from './constants';
+import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS, ROW_HEIGHTS } from './constants';
 import { addMonths, parseISO } from 'date-fns';
-import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings } from 'lucide-react';
+import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, Search } from 'lucide-react';
 
-const APP_VERSION = "v1.6.2";
+const APP_VERSION = "v1.7.2";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -35,13 +35,14 @@ const INITIAL_CONFIG: UserConfig = {
   sortMode: 'Creation',
   autoRegenerateVisit: true,
   colorCompleteSitesGrey: true,
-  completeSiteColor: '#475569' // slate-600
+  completeSiteColor: '#475569' 
 };
 
 const App: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('Day');
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('Normal');
   const [config, setConfig] = useState<UserConfig>(INITIAL_CONFIG);
   const [showAddSite, setShowAddSite] = useState(false);
   const [showHolidays, setShowHolidays] = useState(false);
@@ -59,6 +60,8 @@ const App: React.FC = () => {
   const [showDebug, setShowDebug] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const activeRowHeight = useMemo(() => ROW_HEIGHTS[zoomLevel], [zoomLevel]);
+
   const addLog = useCallback((msg: string) => {
     console.log(`[APP DEBUG] ${msg}`);
     setDebugLog(prev => [msg, ...prev].slice(0, 10));
@@ -69,6 +72,7 @@ const App: React.FC = () => {
     const savedHolidays = localStorage.getItem('sitework_holidays');
     const savedTheme = localStorage.getItem('sitework_theme');
     const savedConfig = localStorage.getItem('sitework_config');
+    const savedZoom = localStorage.getItem('sitework_zoom');
     
     if (savedSites) {
       try {
@@ -87,6 +91,8 @@ const App: React.FC = () => {
     if (savedConfig) {
       try { setConfig({ ...INITIAL_CONFIG, ...JSON.parse(savedConfig) }); } catch (e) { setConfig(INITIAL_CONFIG); }
     }
+
+    if (savedZoom) setZoomLevel(savedZoom as ZoomLevel);
     
     if (savedTheme === 'light') setIsDarkMode(false);
     else setIsDarkMode(true);
@@ -115,6 +121,14 @@ const App: React.FC = () => {
     setSites(newSites);
     localStorage.setItem('sitework_sites', JSON.stringify(newSites));
   }, []);
+
+  const handleToggleZoom = () => {
+    const levels: ZoomLevel[] = ['Normal', 'Compact', 'Tight'];
+    const nextIndex = (levels.indexOf(zoomLevel) + 1) % levels.length;
+    const next = levels[nextIndex];
+    setZoomLevel(next);
+    localStorage.setItem('sitework_zoom', next);
+  };
 
   const handleToggleSiteStatus = (siteId: string) => {
     const scheduled = scheduledSites.find(s => s.id === siteId);
@@ -448,9 +462,13 @@ const App: React.FC = () => {
             <Bug size={18} />
           </button>
 
-          <button onClick={handleExpandAll} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2">
+          <button onClick={handleExpandAll} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2" title="Expand/Collapse All Rows">
             {expandedSites.size === sites.length ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             {expandedSites.size === sites.length ? "Collapse All" : "Expand All"}
+          </button>
+
+          <button onClick={handleToggleZoom} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2" title="Toggle Row Compression">
+            <Search size={14} /> {zoomLevel}
           </button>
           
           <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 mr-2 border border-slate-700">
@@ -526,6 +544,8 @@ const App: React.FC = () => {
               onToggleSiteStatus={handleToggleSiteStatus}
               onToggleStepConfirmation={handleToggleStepConfirmation}
               isDarkMode={isDarkMode}
+              rowHeight={activeRowHeight}
+              zoomLevel={zoomLevel}
             />
             <GanttChart 
               rows={flattenedRows}
@@ -536,6 +556,8 @@ const App: React.FC = () => {
               isDarkMode={isDarkMode}
               viewMode={viewMode}
               userConfig={config}
+              rowHeight={activeRowHeight}
+              expandedSites={expandedSites}
             />
           </div>
         </div>
@@ -584,7 +606,13 @@ const App: React.FC = () => {
         </div>
       </footer>
 
-      {showAddSite && <AddSiteForm onClose={() => setShowAddSite(false)} onSubmit={handleAddSite} />}
+      {showAddSite && (
+        <AddSiteForm 
+          onClose={() => setShowAddSite(false)} 
+          onSubmit={handleAddSite} 
+          existingSiteNames={sites.map(s => s.name)}
+        />
+      )}
       {showHolidays && <HolidayManager holidays={holidays} onAdd={(h) => {
         const nextHolidays = [...holidays, { ...h, id: Math.random().toString(36).substr(2, 9) }];
         setHolidays(nextHolidays);

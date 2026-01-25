@@ -1,13 +1,12 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Site, Step, Holiday, ViewMode, StepName, UserConfig } from '../types';
-import { MAX_CAPACITY, ROW_HEIGHT } from '../constants';
+import { MAX_CAPACITY } from '../constants';
 import { 
   eachDayOfInterval, 
   eachMonthOfInterval, 
   format, 
   differenceInCalendarDays, 
   startOfYear, 
-  endOfYear, 
   endOfMonth,
   addMonths,
   parseISO,
@@ -28,6 +27,8 @@ interface GanttChartProps {
   isDarkMode: boolean;
   viewMode: ViewMode;
   userConfig: UserConfig;
+  rowHeight: number;
+  expandedSites: Set<string>;
 }
 
 const GanttChart: React.FC<GanttChartProps> = ({ 
@@ -38,7 +39,9 @@ const GanttChart: React.FC<GanttChartProps> = ({
   onToggleStepDone,
   isDarkMode,
   viewMode,
-  userConfig
+  userConfig,
+  rowHeight,
+  expandedSites
 }) => {
   const horizontalScrollRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -53,27 +56,22 @@ const GanttChart: React.FC<GanttChartProps> = ({
     }
   }, [viewMode]);
 
-  // Start with 2026 as base
   const startDate = useMemo(() => startOfYear(new Date(2026, 0, 1)), []);
   
-  // Dynamically calculate end date based on actual scheduled tasks
-  // Logic: 12 months past the latest task finish date
   const endDate = useMemo(() => {
-    let latestTaskFinish = addMonths(startDate, 11); // Initial default: End of 2026
-    
+    let latestTaskFinish = addMonths(startDate, 11);
     rows.forEach(row => {
       if (row.step) {
         const finish = parseISO(row.step.finishDate);
-        if (isAfter(finish, latestTaskFinish)) {
-          latestTaskFinish = finish;
-        }
+        if (isAfter(finish, latestTaskFinish)) latestTaskFinish = finish;
+      } else if (row.site.steps.length > 0) {
+        row.site.steps.forEach(s => {
+            const f = parseISO(s.finishDate);
+            if (isAfter(f, latestTaskFinish)) latestTaskFinish = f;
+        });
       }
     });
-
-    // Always provide a 12-month buffer past the last item
-    const extended = addMonths(latestTaskFinish, 12);
-    // Align to end of month/year for aesthetic spacing
-    return endOfMonth(extended);
+    return endOfMonth(addMonths(latestTaskFinish, 12));
   }, [rows, startDate]);
 
   const days = useMemo(() => eachDayOfInterval({ start: startDate, end: endDate }), [startDate, endDate]);
@@ -117,30 +115,23 @@ const GanttChart: React.FC<GanttChartProps> = ({
   };
 
   const handleHorizontalScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (headerRef.current) {
-      headerRef.current.scrollLeft = e.currentTarget.scrollLeft;
-    }
+    if (headerRef.current) headerRef.current.scrollLeft = e.currentTarget.scrollLeft;
   };
 
   useEffect(() => {
     const el = horizontalScrollRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (e.shiftKey) {
-        el.scrollLeft += e.deltaY;
-        e.preventDefault();
-      } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-        el.scrollLeft += e.deltaX;
-        e.preventDefault();
-      }
+      if (e.shiftKey) { el.scrollLeft += e.deltaY; e.preventDefault(); } 
+      else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { el.scrollLeft += e.deltaX; e.preventDefault(); }
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
   return (
-    <div className={`flex-grow flex flex-col transition-colors min-w-0 ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'} relative`}>
-      <div ref={headerRef} className={`sticky top-0 z-40 border-b overflow-hidden ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`} style={{ height: ROW_HEIGHT * 2 }}>
+    <div className={`flex-grow flex flex-col transition-all min-w-0 ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'} relative`}>
+      <div ref={headerRef} className={`sticky top-0 z-40 border-b overflow-hidden ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`} style={{ height: rowHeight * 2 }}>
         <div className="flex whitespace-nowrap h-full relative" style={{ width: days.length * DAY_WIDTH }}>
           <div className="absolute top-0 left-0 flex h-1/2 border-b border-slate-200/10">
             {months.map(m => (
@@ -159,7 +150,6 @@ const GanttChart: React.FC<GanttChartProps> = ({
               const dStr = startOfDay(d).toISOString();
               const util = capacityHeatmap[dStr] || 0;
               const colorClass = util > 0.8 ? 'bg-red-500/30' : util > 0.4 ? 'bg-amber-500/20' : util > 0 ? 'bg-emerald-500/20' : '';
-              
               return (
                 <div 
                   key={d.toISOString()} 
@@ -186,7 +176,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
       </div>
 
       <div ref={horizontalScrollRef} onScroll={handleHorizontalScroll} className="flex-grow overflow-x-auto scrollbar-hide">
-        <div className="relative bg-inherit" style={{ width: days.length * DAY_WIDTH, height: rows.length * ROW_HEIGHT }}>
+        <div className="relative bg-inherit" style={{ width: days.length * DAY_WIDTH, height: rows.length * rowHeight }}>
           <div className="absolute inset-0 pointer-events-none flex">
             {days.map(d => (
               <div 
@@ -201,22 +191,80 @@ const GanttChart: React.FC<GanttChartProps> = ({
 
           {rows.map((row) => {
             const siteFullyComplete = userConfig.colorCompleteSitesGrey && row.site.steps.length === 5 && row.site.steps.every(s => s.done);
+            const isSiteHeader = !row.step;
+            const isCollapsed = !expandedSites.has(row.site.id);
+
+            // Summary Calculation for Collapsed Sites
+            // NOTE: Logic refactored to remove useMemo hook from inside the loop (fixes React error #310)
+            let summaryData = null;
+            if (isSiteHeader && isCollapsed && row.site.steps.length > 0) {
+                const steps = row.site.steps;
+                const mainPhaseSteps = steps.filter(s => s.name !== StepName.REVISIT);
+                const revisitStep = steps.find(s => s.name === StepName.REVISIT);
+
+                if (mainPhaseSteps.length > 0) {
+                    let minStart = parseISO(mainPhaseSteps[0].startDate);
+                    let maxFinish = parseISO(mainPhaseSteps[0].finishDate);
+
+                    mainPhaseSteps.forEach(s => {
+                        const start = parseISO(s.startDate);
+                        const finish = parseISO(s.finishDate);
+                        if (isBefore(start, minStart)) minStart = start;
+                        if (isAfter(finish, maxFinish)) maxFinish = finish;
+                    });
+
+                    summaryData = {
+                        main: { start: minStart.toISOString(), finish: maxFinish.toISOString() },
+                        revisit: revisitStep
+                    };
+                } else {
+                    summaryData = { main: null, revisit: revisitStep };
+                }
+            }
             
             return (
               <div 
                 key={`${row.site.id}-${row.step?.name || 'header'}`} 
                 onMouseEnter={() => setHoveredRowIndex(row.rowIndex)}
                 onMouseLeave={() => setHoveredRowIndex(null)}
-                className={`relative transition-colors border-b flex items-center
+                className={`relative transition-all border-b flex items-center
                   ${isDarkMode ? 'border-slate-800/50' : 'border-slate-100'}
                   ${hoveredRowIndex === row.rowIndex ? (isDarkMode ? 'bg-slate-800/40' : 'bg-blue-50/50') : ''}
                   ${row.step?.done ? (isDarkMode ? 'bg-emerald-950/10' : 'bg-emerald-50/30') : ''}`} 
-                style={{ height: ROW_HEIGHT }}
+                style={{ height: rowHeight }}
               >
+                {/* Summary Bars for Collapsed Sites */}
+                {summaryData && (
+                    <div className="absolute inset-0 pointer-events-none">
+                        {summaryData.main && (
+                            <div 
+                                className={`absolute h-2.5 top-1/2 -translate-y-1/2 rounded-full opacity-50 shadow-sm
+                                    ${siteFullyComplete ? '' : 'bg-slate-400 dark:bg-slate-600'}`}
+                                style={{ 
+                                    left: getPosition(summaryData.main.start),
+                                    width: getWidth(summaryData.main.start, summaryData.main.finish),
+                                    backgroundColor: siteFullyComplete ? userConfig.completeSiteColor : undefined
+                                }}
+                            />
+                        )}
+                        {summaryData.revisit && (
+                            <div 
+                                className="absolute h-2.5 top-1/2 -translate-y-1/2 rounded-full shadow-sm"
+                                style={{ 
+                                    left: getPosition(summaryData.revisit.startDate),
+                                    width: getWidth(summaryData.revisit.startDate, summaryData.revisit.finishDate),
+                                    backgroundColor: siteFullyComplete ? userConfig.completeSiteColor : userConfig.stepColors[StepName.REVISIT]
+                                }}
+                            />
+                        )}
+                    </div>
+                )}
+
                 {row.step && (
                   <div 
                     onClick={() => setSelectedBar({ site: row.site, step: row.step! })}
-                    className={`absolute top-2 bottom-2 rounded cursor-pointer flex items-center px-2 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95
+                    className={`absolute rounded cursor-pointer flex items-center px-2 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95
+                      ${rowHeight < 40 ? 'top-1 bottom-1 px-1' : 'top-2 bottom-2'}
                       ${row.step.isTentative ? 'bg-slate-500/80 diagonal-stripe' : ''} 
                       ${row.step.done && !userConfig.keepColorOnDone && !siteFullyComplete ? 'bg-emerald-600 ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900 shadow-xl scale-[1.01]' : ''} 
                       ${!row.step.done && isBefore(parseISO(row.step.finishDate), startOfDay(new Date())) ? 'ring-2 ring-red-500 ring-offset-1 ring-offset-slate-900' : ''}
@@ -229,8 +277,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
                         : ((!row.step.done || userConfig.keepColorOnDone) && !row.step.isTentative ? userConfig.stepColors[row.step.name] : undefined)
                     }}
                   >
-                    <span className="truncate pr-1">{row.step.name}</span>
-                    {row.step.done && <Check size={12} strokeWidth={3} className="ml-auto" />}
+                    <span className="truncate pr-1">{rowHeight > 30 && row.step.name}</span>
+                    {row.step.done && <Check size={rowHeight < 30 ? 10 : 12} strokeWidth={3} className="ml-auto" />}
                   </div>
                 )}
               </div>
@@ -265,23 +313,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
                 <span className="font-bold">{formatDateUK(selectedBar.step.finishDate)}</span>
               </div>
             </div>
-            <div className={`pt-2 flex items-center justify-between border-t ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Status</span>
-              {selectedBar.step.done ? (
-                <span className="text-emerald-500 flex items-center gap-1 text-[11px] font-bold">
-                  <CheckCircle size={14} /> COMPLETE
-                </span>
-              ) : (
-                <span className={`${isBefore(parseISO(selectedBar.step.finishDate), startOfDay(new Date())) ? 'text-red-500 animate-pulse' : 'text-blue-500'} text-[11px] font-bold`}>
-                  {isBefore(parseISO(selectedBar.step.finishDate), startOfDay(new Date())) ? 'OVERDUE' : (selectedBar.step.isTentative ? 'TBC' : 'SCHEDULED')}
-                </span>
-              )}
-            </div>
             <button 
-              onClick={() => {
-                onToggleStepDone(selectedBar.site.id, selectedBar.step.name);
-                setSelectedBar(null);
-              }}
+              onClick={() => { onToggleStepDone(selectedBar.site.id, selectedBar.step.name); setSelectedBar(null); }}
               className={`w-full mt-2 py-3 rounded-xl text-xs font-bold transition-all shadow-lg
                 ${selectedBar.step.done 
                   ? 'bg-slate-200 text-slate-600 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-300' 

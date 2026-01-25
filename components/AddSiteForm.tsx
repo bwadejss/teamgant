@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { SiteStatus, Site, StepName } from '../types';
 import { X, Clock, Calendar as CalIcon } from 'lucide-react';
@@ -7,9 +6,10 @@ import { DEFAULT_DURATIONS } from '../constants';
 interface AddSiteFormProps {
   onClose: () => void;
   onSubmit: (site: Partial<Site>) => void;
+  existingSiteNames: string[];
 }
 
-const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit }) => {
+const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSiteNames }) => {
   const [name, setName] = useState('');
   const [siteType, setSiteType] = useState('WTW');
   const [owner, setOwner] = useState('');
@@ -69,6 +69,19 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit }) => {
       return;
     }
 
+    // Append WTW or STW to the name
+    const finalName = `${name.trim()} (${siteType})`;
+
+    // Prevent duplicate sites (Case-insensitive)
+    const isDuplicate = existingSiteNames.some(
+      existing => existing.toLowerCase() === finalName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      setError(`A site named "${finalName}" already exists. Please use a unique name.`);
+      return;
+    }
+
     let bookedStartDate: string | undefined = undefined;
     if (status === SiteStatus.BOOKED) {
       // Construct date from parts
@@ -90,9 +103,6 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit }) => {
       }
       bookedStartDate = parsed.toISOString();
     }
-
-    // Append WTW or STW to the name
-    const finalName = `${name.trim()} (${siteType})`;
 
     onSubmit({
       name: finalName,
