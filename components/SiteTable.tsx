@@ -110,7 +110,7 @@ const SiteTable: React.FC<SiteTableProps> = ({
                         <Calendar size={10} className="opacity-50" />
                         <input 
                           type="date" 
-                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className={`bg-transparent border-none p-0 focus:ring-0 text-[9px] cursor-pointer hover:text-blue-500 transition-colors font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}
                           value={parseISO(step!.startDate).toISOString().split('T')[0]}
                           onChange={(e) => handleDateChange(site.id, step!.name, e.target.value)}
@@ -121,7 +121,7 @@ const SiteTable: React.FC<SiteTableProps> = ({
                         <input 
                           type="number" 
                           min="1"
-                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className={`w-12 bg-white/5 dark:bg-slate-800/50 border border-slate-200/10 rounded px-1 focus:ring-1 focus:ring-blue-500 text-[10px] cursor-pointer hover:text-blue-500 transition-colors font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}
                           value={step!.durationWorkdays}
                           onChange={(e) => onUpdateStepDuration(site.id, step!.name, parseInt(e.target.value) || 1)}

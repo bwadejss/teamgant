@@ -6,10 +6,13 @@ import GanttChart from './components/GanttChart';
 import AddSiteForm from './components/AddSiteForm';
 import HolidayManager from './components/HolidayManager';
 import ReadmeModal from './components/ReadmeModal';
+import ConfirmModal from './components/ConfirmModal';
 import { SchedulingEngine } from './engine/scheduling';
 import { exportToExcel } from './utils/excelExport';
 import { importFromExcel } from './utils/excelImport';
-import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle } from 'lucide-react';
+import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2 } from 'lucide-react';
+
+const APP_VERSION = "v1.1.0";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -29,10 +32,14 @@ const App: React.FC = () => {
   const [showAddSite, setShowAddSite] = useState(false);
   const [showHolidays, setShowHolidays] = useState(false);
   const [showReadme, setShowReadme] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [expandedSites, setExpandedSites] = useState<Set<string>>(new Set());
   const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
+  const [importStatus, setImportStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,12 +47,19 @@ const App: React.FC = () => {
     const savedHolidays = localStorage.getItem('sitework_holidays');
     const savedTheme = localStorage.getItem('sitework_theme');
     
-    const initialSites = savedSites ? JSON.parse(savedSites) : [];
-    setSites(initialSites);
-    setExpandedSites(new Set(initialSites.map((s: Site) => s.id)));
+    if (savedSites) {
+      try {
+        const initialSites = JSON.parse(savedSites);
+        setSites(initialSites);
+        setExpandedSites(new Set(initialSites.map((s: Site) => s.id)));
+      } catch (e) { console.error("Error loading saved sites", e); }
+    }
     
-    if (savedHolidays) setHolidays(JSON.parse(savedHolidays));
-    else setHolidays(SEED_HOLIDAYS);
+    if (savedHolidays) {
+      try { setHolidays(JSON.parse(savedHolidays)); } catch (e) { setHolidays(SEED_HOLIDAYS); }
+    } else {
+      setHolidays(SEED_HOLIDAYS);
+    }
     
     if (savedTheme === 'light') setIsDarkMode(false);
     else setIsDarkMode(true);
@@ -79,23 +93,40 @@ const App: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setPendingImportFile(file);
+    e.target.value = ''; 
+  };
 
-    if (confirm('Warning: Importing will replace your current schedule. Proceed?')) {
-      try {
-        const result = await importFromExcel(file);
-        setHolidays(result.holidays);
-        localStorage.setItem('sitework_holidays', JSON.stringify(result.holidays));
-        saveSites(result.sites);
-        setExpandedSites(new Set(result.sites.map(s => s.id)));
-        alert('Plan imported successfully!');
-      } catch (err: any) {
-        alert(err.message);
-      }
+  const processImport = async () => {
+    if (!pendingImportFile) return;
+    setIsImporting(true);
+    setImportStatus(null);
+    try {
+      const result = await importFromExcel(pendingImportFile);
+      setHolidays(result.holidays);
+      localStorage.setItem('sitework_holidays', JSON.stringify(result.holidays));
+      setSites(result.sites);
+      localStorage.setItem('sitework_sites', JSON.stringify(result.sites));
+      setExpandedSites(new Set(result.sites.map(s => s.id)));
+      setImportStatus({ message: `Successfully imported ${result.sites.length} sites.`, type: 'success' });
+    } catch (err: any) {
+      setImportStatus({ message: err.message || 'Import failed.', type: 'error' });
+    } finally {
+      setIsImporting(false);
+      setPendingImportFile(null);
     }
-    e.target.value = '';
+  };
+
+  const handleClearAll = () => {
+    setSites([]);
+    setHolidays(SEED_HOLIDAYS);
+    setExpandedSites(new Set());
+    localStorage.removeItem('sitework_sites');
+    localStorage.setItem('sitework_holidays', JSON.stringify(SEED_HOLIDAYS));
+    setShowClearConfirm(false);
   };
 
   const handleAddSite = (siteData: Partial<Site>) => {
@@ -213,7 +244,10 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="bg-blue-500 p-2 rounded-lg shadow-inner"><LayoutGrid size={24} /></div>
           <div>
-            <h1 className="text-lg font-bold leading-tight">SiteWork Planner</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold leading-tight">SiteWork Planner</h1>
+              <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded text-slate-400 font-mono">{APP_VERSION}</span>
+            </div>
             <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Project Workflow Engine</p>
           </div>
         </div>
@@ -236,14 +270,23 @@ const App: React.FC = () => {
           </button>
           
           <div className="flex items-center gap-1 mr-2">
-            <button onClick={handleImportClick} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700">
-              <Upload size={14} /> Import
+            <button 
+              disabled={isImporting}
+              onClick={handleImportClick} 
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-xs font-medium border ${isImporting ? 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
+            >
+              {isImporting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} 
+              {isImporting ? 'Importing...' : 'Import'}
             </button>
             <button onClick={() => exportToExcel(scheduledSites, holidays)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700">
               <Download size={14} /> Export
             </button>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx,.xls" className="hidden" />
           </div>
+
+          <button onClick={() => setShowClearConfirm(true)} className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors mr-1 border border-transparent hover:border-red-500/20" title="Clear All Data">
+            <Trash2 size={18} />
+          </button>
 
           <button onClick={() => setShowReadme(true)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ml-1"><Info size={18} /></button>
           <button onClick={toggleDarkMode} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ml-1">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
@@ -255,6 +298,16 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-grow flex flex-col overflow-hidden bg-inherit relative">
+        {importStatus && (
+          <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-[400] px-6 py-3 rounded-full shadow-2xl animate-in slide-in-from-top-4 duration-300 flex items-center gap-3 ${
+            importStatus.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
+          }`}>
+            <AlertTriangle size={18} />
+            <span className="text-sm font-bold">{importStatus.message}</span>
+            <button onClick={() => setImportStatus(null)} className="hover:bg-black/10 rounded-full p-1"><X size={16}/></button>
+          </div>
+        )}
+
         <div className="flex-grow overflow-y-auto scrollbar-hide">
           <div className="flex min-h-full">
             <SiteTable 
@@ -286,23 +339,35 @@ const App: React.FC = () => {
         </div>
 
         {siteToDelete && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 transform animate-in zoom-in-95 duration-200">
-              <div className="p-6 text-center">
-                <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mb-4">
-                  <AlertTriangle size={24} />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete Site?</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
-                  Are you sure you want to delete <span className="font-bold text-slate-700 dark:text-slate-200">"{siteToDelete.name}"</span>? 
-                </p>
-                <div className="flex gap-3">
-                  <button onClick={() => setSiteToDelete(null)} className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all">Cancel</button>
-                  <button onClick={performDeletion} className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-red-500/20">Confirm Delete</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ConfirmModal 
+            title="Delete Site?"
+            message={`Are you sure you want to delete "${siteToDelete.name}"? This cannot be undone.`}
+            confirmText="Delete"
+            type="danger"
+            onConfirm={performDeletion}
+            onCancel={() => setSiteToDelete(null)}
+          />
+        )}
+
+        {showClearConfirm && (
+          <ConfirmModal 
+            title="Clear All Data?"
+            message="This will permanently delete all your projects and reset holidays to defaults. Make sure you have a backup!"
+            confirmText="Clear All"
+            type="danger"
+            onConfirm={handleClearAll}
+            onCancel={() => setShowClearConfirm(false)}
+          />
+        )}
+
+        {pendingImportFile && (
+          <ConfirmModal 
+            title="Import Project Plan?"
+            message={`This will overwrite your current schedule with "${pendingImportFile.name}". Continue?`}
+            confirmText="Overwrite"
+            onConfirm={processImport}
+            onCancel={() => setPendingImportFile(null)}
+          />
         )}
       </main>
 
