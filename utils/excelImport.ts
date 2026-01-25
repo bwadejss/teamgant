@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { Site, Holiday, Step, SiteStatus, StepName } from '../types';
 import { parseUKDate } from './dateUtils';
@@ -9,66 +8,130 @@ interface ImportResult {
 }
 
 export const importFromExcel = async (file: File): Promise<ImportResult> => {
+  console.log('[ExcelImport] Starting file process:', file.name, 'Size:', file.size);
+  
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    
     reader.onload = (e) => {
       try {
+        console.log('[ExcelImport] FileReader successful. Converting to array...');
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
         
-        // Parse Holidays
-        const holidaySheet = workbook.Sheets['Holidays'];
-        const holidays: Holiday[] = holidaySheet 
-          ? XLSX.utils.sheet_to_json<any>(holidaySheet).map((row, idx) => ({
-              id: `h-${idx}-${Date.now()}`,
-              date: parseUKDate(row['Date'])?.toISOString() || new Date().toISOString(),
-              description: row['Description'] || 'Imported Holiday'
-            }))
-          : [];
+        console.log('[ExcelImport] Reading workbook with cellDates: true...');
+        const workbook = XLSX.read(data, { 
+          type: 'array', 
+          cellDates: true,
+          dateNF: 'yyyy-mm-dd'
+        });
+        
+        console.log('[ExcelImport] Workbook sheets:', workbook.SheetNames);
 
-        // Parse Sites
+        // 1. Parse Holidays
+        const holidaySheet = workbook.Sheets['Holidays'];
+        const holidays: Holiday[] = [];
+        if (holidaySheet) {
+          const holidayRows = XLSX.utils.sheet_to_json<any>(holidaySheet);
+          console.log(`[ExcelImport] Found ${holidayRows.length} potential holiday rows.`);
+          holidayRows.forEach((row, idx) => {
+            const rawDate = row['Date'];
+            let parsedDate: Date | null = null;
+            
+            if (rawDate instanceof Date) {
+              parsedDate = rawDate;
+            } else if (typeof rawDate === 'string') {
+              parsedDate = parseUKDate(rawDate);
+            }
+
+            if (parsedDate && !isNaN(parsedDate.getTime())) {
+              holidays.push({
+                id: `h-import-${idx}-${Date.now()}`,
+                date: parsedDate.toISOString(),
+                description: row['Description'] || 'Imported Holiday'
+              });
+            }
+          });
+        }
+
+        // 2. Parse Project Plan
         const siteSheet = workbook.Sheets['Project Plan'];
-        if (!siteSheet) throw new Error('Could not find "Project Plan" sheet.');
+        if (!siteSheet) {
+          throw new Error('Could not find "Project Plan" sheet. Please ensure you are importing a file exported from this app.');
+        }
         
         const siteRows = XLSX.utils.sheet_to_json<any>(siteSheet);
+        console.log(`[ExcelImport] Found ${siteRows.length} project plan rows.`);
+        
         const sitesMap = new Map<string, Site>();
         
-        siteRows.forEach(row => {
-          const siteId = row['_siteId'] || row['Site Name'];
+        siteRows.forEach((row, idx) => {
+          const siteName = row['Site Name'] || 'Unnamed Site';
+          const siteId = String(row['_siteId'] || siteName);
+          
           if (!sitesMap.has(siteId)) {
             sitesMap.set(siteId, {
               id: siteId,
-              name: row['Site Name'],
-              owner: row['Owner'] || 'Unknown',
+              name: String(siteName),
+              owner: String(row['Owner'] || 'TBC'),
               status: (row['Status'] as SiteStatus) || SiteStatus.TBC,
-              bookedStartDate: parseUKDate(row['Start Date'])?.toISOString(),
+              bookedStartDate: undefined,
               createdAt: Date.now(),
               notes: '',
               steps: [],
-              order: row['_order'] || 0
+              order: Number(row['_order']) || idx
             });
           }
           
           const site = sitesMap.get(siteId)!;
-          const step: Step = {
-            id: `${siteId}-${row['Task Name']}`,
-            siteId: siteId,
-            name: row['Task Name'] as StepName,
-            durationWorkdays: parseInt(row['Duration (Workdays)']) || 1,
-            startDate: parseUKDate(row['Start Date'])?.toISOString() || new Date().toISOString(),
-            finishDate: parseUKDate(row['Finish Date'])?.toISOString() || new Date().toISOString(),
-            done: row['Done'] === 'Yes',
-            manualStartDate: row['Done'] === 'Yes' ? parseUKDate(row['Start Date'])?.toISOString() : undefined
-          };
-          site.steps.push(step);
+          const stepName = row['Task Name'] as StepName;
+          
+          if (stepName) {
+            const rawStart = row['Start Date'];
+            let stepStart: Date | null = null;
+            if (rawStart instanceof Date) stepStart = rawStart;
+            else if (typeof rawStart === 'string') stepStart = parseUKDate(rawStart);
+
+            const rawFinish = row['Finish Date'];
+            let stepFinish: Date | null = null;
+            if (rawFinish instanceof Date) stepFinish = rawFinish;
+            else if (typeof rawFinish === 'string') stepFinish = parseUKDate(rawFinish);
+
+            const isDone = String(row['Done'] || '').toLowerCase() === 'yes' || row['Done'] === true;
+
+            const step: Step = {
+              id: `${siteId}-${stepName}`,
+              siteId: siteId,
+              name: stepName,
+              durationWorkdays: parseInt(row['Duration (Workdays)']) || 1,
+              startDate: stepStart?.toISOString() || new Date().toISOString(),
+              finishDate: stepFinish?.toISOString() || new Date().toISOString(),
+              done: isDone,
+              manualStartDate: isDone ? (stepStart?.toISOString()) : undefined
+            };
+            site.steps.push(step);
+            
+            // Set initial booked start date if this is the first step
+            if (site.status === SiteStatus.BOOKED && !site.bookedStartDate) {
+              site.bookedStartDate = step.startDate;
+            }
+          }
         });
 
-        resolve({ sites: Array.from(sitesMap.values()), holidays });
+        const finalSites = Array.from(sitesMap.values()).sort((a, b) => a.order - b.order);
+        console.log('[ExcelImport] Final reconstructed sites count:', finalSites.length);
+        
+        resolve({ sites: finalSites, holidays });
       } catch (err: any) {
-        reject(new Error(err.message || 'Failed to parse Excel file.'));
+        console.error('[ExcelImport] Critical error during parsing:', err);
+        reject(new Error(err.message || 'Excel parsing failed. Is this a valid SiteWork file?'));
       }
     };
-    reader.onerror = () => reject(new Error('File reading failed.'));
+
+    reader.onerror = (err) => {
+      console.error('[ExcelImport] FileReader error:', err);
+      reject(new Error('File could not be read. Please try again.'));
+    };
+    
     reader.readAsArrayBuffer(file);
   });
 };
