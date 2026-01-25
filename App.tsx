@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Site, Holiday, ViewMode, SiteStatus, StepName } from './types';
 import SiteTable from './components/SiteTable';
 import GanttChart from './components/GanttChart';
@@ -8,7 +8,8 @@ import HolidayManager from './components/HolidayManager';
 import ReadmeModal from './components/ReadmeModal';
 import { SchedulingEngine } from './engine/scheduling';
 import { exportToExcel } from './utils/excelExport';
-import { LayoutGrid, Calendar, Plus, Download, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, X } from 'lucide-react';
+import { importFromExcel } from './utils/excelImport';
+import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, FileUp } from 'lucide-react';
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -19,20 +20,6 @@ const SEED_HOLIDAYS: Holiday[] = [
   { id: '6', date: '2026-08-31T00:00:00.000Z', description: 'Summer Bank Holiday' },
   { id: '7', date: '2026-12-25T00:00:00.000Z', description: 'Christmas Day' },
   { id: '8', date: '2026-12-28T00:00:00.000Z', description: 'Boxing Day (Substitute Day)' },
-];
-
-const SEED_SITES: Site[] = [
-  {
-    id: 'site-1',
-    name: 'Example Site (WTW)',
-    owner: 'Alpha Team',
-    status: SiteStatus.BOOKED,
-    bookedStartDate: '2026-01-05T00:00:00.000Z',
-    createdAt: Date.now() - 100000,
-    notes: 'Initial example',
-    steps: [],
-    order: 0
-  }
 ];
 
 const App: React.FC = () => {
@@ -46,13 +33,14 @@ const App: React.FC = () => {
   const [expandedSites, setExpandedSites] = useState<Set<string>>(new Set());
   const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedSites = localStorage.getItem('sitework_sites');
     const savedHolidays = localStorage.getItem('sitework_holidays');
     const savedTheme = localStorage.getItem('sitework_theme');
     
-    const initialSites = savedSites ? JSON.parse(savedSites) : SEED_SITES;
+    const initialSites = savedSites ? JSON.parse(savedSites) : [];
     setSites(initialSites);
     setExpandedSites(new Set(initialSites.map((s: Site) => s.id)));
     
@@ -86,6 +74,29 @@ const App: React.FC = () => {
     setSites(newSites);
     localStorage.setItem('sitework_sites', JSON.stringify(newSites));
   }, []);
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (confirm('Importing will overwrite your current plan. Do you want to continue?')) {
+      try {
+        const result = await importFromExcel(file);
+        setHolidays(result.holidays);
+        localStorage.setItem('sitework_holidays', JSON.stringify(result.holidays));
+        saveSites(result.sites);
+        setExpandedSites(new Set(result.sites.map(s => s.id)));
+        alert('Data successfully imported!');
+      } catch (err: any) {
+        alert(err.message);
+      }
+    }
+    e.target.value = '';
+  };
 
   const handleAddSite = (siteData: Partial<Site>) => {
     const newSite: Site = {
@@ -141,16 +152,6 @@ const App: React.FC = () => {
           });
         }
         return { ...site, steps: newSteps };
-      }
-      return site;
-    });
-    saveSites(newSites);
-  };
-
-  const handleConfirmSite = (siteId: string, startDate: string) => {
-    const newSites = sites.map(site => {
-      if (site.id === siteId) {
-        return { ...site, status: SiteStatus.BOOKED, bookedStartDate: startDate };
       }
       return site;
     });
@@ -231,10 +232,18 @@ const App: React.FC = () => {
           <button onClick={() => setShowHolidays(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700">
             <Calendar size={14} /> Holidays
           </button>
-          <button onClick={() => exportToExcel(scheduledSites, holidays)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700">
-            <Download size={14} /> Export
-          </button>
-          <button onClick={() => setShowReadme(true)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors"><Info size={18} /></button>
+          
+          <div className="flex items-center gap-1">
+            <button onClick={handleImportClick} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700">
+              <Upload size={14} /> Import
+            </button>
+            <button onClick={() => exportToExcel(scheduledSites, holidays)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700">
+              <Download size={14} /> Export
+            </button>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".xlsx,.xls" className="hidden" />
+          </div>
+
+          <button onClick={() => setShowReadme(true)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ml-1"><Info size={18} /></button>
           <button onClick={toggleDarkMode} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
           <div className="w-[1px] h-6 bg-slate-700 mx-1" />
           <button onClick={() => setShowAddSite(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all text-xs font-bold shadow-xl shadow-blue-500/20 active:scale-95">
@@ -253,7 +262,7 @@ const App: React.FC = () => {
                 const s = sites.find(x => x.id === id);
                 if (s) setSiteToDelete(s);
               }}
-              onConfirmSite={handleConfirmSite}
+              onConfirmSite={() => {}} 
               expandedSites={expandedSites}
               setExpandedSites={setExpandedSites}
               hoveredRowIndex={hoveredRowIndex}
@@ -284,7 +293,6 @@ const App: React.FC = () => {
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Delete Site?</h3>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
                   Are you sure you want to delete <span className="font-bold text-slate-700 dark:text-slate-200">"{siteToDelete.name}"</span>? 
-                  All task progress and schedules for this site will be lost.
                 </p>
                 <div className="flex gap-3">
                   <button onClick={() => setSiteToDelete(null)} className="flex-1 py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl transition-all">Cancel</button>

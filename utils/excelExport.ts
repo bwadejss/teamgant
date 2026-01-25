@@ -1,12 +1,12 @@
 
 import * as XLSX from 'xlsx';
-import { Site, Holiday, Step } from '../types';
+import { Site, Holiday } from '../types';
 import { formatDateUK } from './dateUtils';
 
 export const exportToExcel = (sites: Site[], holidays: Holiday[]) => {
   const wb = XLSX.utils.book_new();
 
-  // Sites & Steps Sheet
+  // Sites & Steps Sheet - Include ID and Order for reconstruction
   const siteData = sites.flatMap(site => 
     site.steps.map(step => ({
       'Site Name': site.name,
@@ -16,7 +16,9 @@ export const exportToExcel = (sites: Site[], holidays: Holiday[]) => {
       'Start Date': formatDateUK(step.startDate),
       'Finish Date': formatDateUK(step.finishDate),
       'Duration (Workdays)': step.durationWorkdays,
-      'Done': step.done ? 'Yes' : 'No'
+      'Done': step.done ? 'Yes' : 'No',
+      '_siteId': site.id, // Metadata for import
+      '_order': site.order
     }))
   );
 
@@ -32,5 +34,5 @@ export const exportToExcel = (sites: Site[], holidays: Holiday[]) => {
   XLSX.utils.book_append_sheet(wb, wsHolidays, 'Holidays');
 
   // Generate and Download
-  XLSX.writeFile(wb, `SiteWork_Planner_${new Date().toISOString().split('T')[0]}.xlsx`);
+  XLSX.writeFile(wb, `SiteWork_Backup_${new Date().toISOString().split('T')[0]}.xlsx`);
 };
