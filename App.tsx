@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Site, Holiday, ViewMode, SiteStatus, StepName, UserConfig } from './types';
 import SiteTable from './components/SiteTable';
@@ -14,7 +13,7 @@ import { importFromExcel } from './utils/excelImport';
 import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS } from './constants';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings } from 'lucide-react';
 
-const APP_VERSION = "v1.2.7";
+const APP_VERSION = "v1.2.8";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -386,7 +385,6 @@ const App: React.FC = () => {
                 const s = sites.find(x => x.id === id);
                 if (s) setSiteToDelete(s);
               }}
-              onConfirmSite={() => {}} 
               expandedSites={expandedSites}
               setExpandedSites={setExpandedSites}
               hoveredRowIndex={hoveredRowIndex}

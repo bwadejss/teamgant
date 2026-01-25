@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Site, Step, StepName, SiteStatus } from '../types';
 import { ChevronDown, ChevronRight, CheckCircle2, Circle, Trash2, Calendar, Plus, Minus } from 'lucide-react';
@@ -9,9 +8,8 @@ interface SiteTableProps {
   rows: { site: Site; step?: Step; rowIndex: number }[];
   onToggleStepDone: (siteId: string, stepName: StepName) => void;
   onRemoveSite: (siteId: string) => void;
-  onConfirmSite: (siteId: string, startDate: string) => void;
   expandedSites: Set<string>;
-  setExpandedSites: React.Dispatch<Set<string>> | ((next: Set<string>) => void);
+  setExpandedSites: React.Dispatch<React.SetStateAction<Set<string>>>;
   hoveredRowIndex: number | null;
   setHoveredRowIndex: (idx: number | null) => void;
   onUpdateStepDate: (siteId: string, stepName: StepName, newDate: string) => void;
@@ -118,10 +116,12 @@ const SiteTable: React.FC<SiteTableProps> = ({
   isDarkMode
 }) => {
   const toggleExpand = (id: string) => {
-    const next = new Set(expandedSites);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    (setExpandedSites as any)(next);
+    setExpandedSites(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const handleDateChange = (siteId: string, stepName: StepName, val: string) => {
