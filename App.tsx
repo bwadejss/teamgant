@@ -14,7 +14,7 @@ import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS, ROW_HEIGHTS } from './constants
 import { addMonths, parseISO } from 'date-fns';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, Search } from 'lucide-react';
 
-const APP_VERSION = "v1.7.2";
+const APP_VERSION = "v1.7.3";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -66,6 +66,15 @@ const App: React.FC = () => {
     console.log(`[APP DEBUG] ${msg}`);
     setDebugLog(prev => [msg, ...prev].slice(0, 10));
   }, []);
+
+  // Synchronize document-level dark mode for consistent rendering in all browsers
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     const savedSites = localStorage.getItem('sitework_sites');
@@ -570,6 +579,7 @@ const App: React.FC = () => {
             type="danger"
             onConfirm={performDeletion}
             onCancel={() => setSiteToDelete(null)}
+            isDarkMode={isDarkMode}
           />
         )}
 
@@ -581,6 +591,7 @@ const App: React.FC = () => {
             type="danger"
             onConfirm={handleClearAll}
             onCancel={() => setShowClearConfirm(false)}
+            isDarkMode={isDarkMode}
           />
         )}
 
@@ -591,6 +602,7 @@ const App: React.FC = () => {
             confirmText="Overwrite"
             onConfirm={processImport}
             onCancel={() => setPendingImportFile(null)}
+            isDarkMode={isDarkMode}
           />
         )}
       </main>
@@ -611,6 +623,7 @@ const App: React.FC = () => {
           onClose={() => setShowAddSite(false)} 
           onSubmit={handleAddSite} 
           existingSiteNames={sites.map(s => s.name)}
+          isDarkMode={isDarkMode}
         />
       )}
       {showHolidays && <HolidayManager holidays={holidays} onAdd={(h) => {
@@ -621,9 +634,9 @@ const App: React.FC = () => {
         const nextHolidays = holidays.filter(h => h.id !== id);
         setHolidays(nextHolidays);
         localStorage.setItem('sitework_holidays', JSON.stringify(nextHolidays));
-      }} onClose={() => setShowHolidays(false)} />}
+      }} onClose={() => setShowHolidays(false)} isDarkMode={isDarkMode} />}
       {showConfig && <ConfigModal config={config} onUpdate={saveConfig} onClose={() => setShowConfig(false)} isDarkMode={isDarkMode} />}
-      {showReadme && <ReadmeModal onClose={() => setShowReadme(false)} />}
+      {showReadme && <ReadmeModal onClose={() => setShowReadme(false)} isDarkMode={isDarkMode} />}
     </div>
   );
 };

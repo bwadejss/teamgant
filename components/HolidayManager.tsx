@@ -8,9 +8,10 @@ interface HolidayManagerProps {
   onAdd: (h: Omit<Holiday, 'id'>) => void;
   onRemove: (id: string) => void;
   onClose: () => void;
+  isDarkMode: boolean;
 }
 
-const HolidayManager: React.FC<HolidayManagerProps> = ({ holidays, onAdd, onRemove, onClose }) => {
+const HolidayManager: React.FC<HolidayManagerProps> = ({ holidays, onAdd, onRemove, onClose, isDarkMode }) => {
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
 
@@ -24,19 +25,19 @@ const HolidayManager: React.FC<HolidayManagerProps> = ({ holidays, onAdd, onRemo
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden border dark:border-slate-800 transition-colors">
-        <div className="flex items-center justify-between p-5 border-b dark:border-slate-800 bg-slate-50 dark:bg-slate-950 transition-colors">
+      <div className={`rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden border transition-colors ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+        <div className={`flex items-center justify-between p-5 border-b transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-100 bg-slate-50'}`}>
           <div>
-            <h2 className="text-xl font-bold dark:text-white">Holiday Manager</h2>
+            <h2 className="text-xl font-bold">Holiday Manager</h2>
             <p className="text-xs text-slate-500 mt-0.5">Define non-working days for scheduling</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors dark:text-slate-400">
+          <button onClick={onClose} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}>
             <X size={20}/>
           </button>
         </div>
         
         <div className="p-6 flex-grow overflow-y-auto space-y-6">
-          <form onSubmit={handleAdd} className="space-y-4 p-4 bg-slate-50 dark:bg-slate-950 rounded-xl border dark:border-slate-800">
+          <form onSubmit={handleAdd} className={`space-y-4 p-4 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
             <div className="space-y-3">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Holiday Date</label>
@@ -45,7 +46,7 @@ const HolidayManager: React.FC<HolidayManagerProps> = ({ holidays, onAdd, onRemo
                   type="date" 
                   value={date} 
                   onChange={e => setDate(e.target.value)} 
-                  className="w-full border-2 border-slate-100 dark:border-slate-800 dark:bg-slate-900 rounded-lg p-2 text-sm outline-none focus:border-blue-500 transition-all dark:text-white" 
+                  className={`w-full border-2 rounded-lg p-2 text-sm outline-none transition-all ${isDarkMode ? 'border-slate-800 bg-slate-900 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-800 focus:border-blue-500'}`} 
                 />
               </div>
               <div>
@@ -55,7 +56,7 @@ const HolidayManager: React.FC<HolidayManagerProps> = ({ holidays, onAdd, onRemo
                   placeholder="e.g. Bank Holiday" 
                   value={description} 
                   onChange={e => setDescription(e.target.value)} 
-                  className="w-full border-2 border-slate-100 dark:border-slate-800 dark:bg-slate-900 rounded-lg p-2 text-sm outline-none focus:border-blue-500 transition-all dark:text-white" 
+                  className={`w-full border-2 rounded-lg p-2 text-sm outline-none transition-all ${isDarkMode ? 'border-slate-800 bg-slate-900 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-800 focus:border-blue-500'}`} 
                 />
               </div>
             </div>
@@ -70,17 +71,17 @@ const HolidayManager: React.FC<HolidayManagerProps> = ({ holidays, onAdd, onRemo
               <div className="text-center py-8 text-slate-500 text-xs italic">No custom holidays added yet</div>
             ) : (
               holidays.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(h => (
-                <div key={h.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-800/50 rounded-xl border dark:border-slate-800 group hover:border-blue-500/30 transition-colors">
+                <div key={h.id} className={`flex items-center justify-between p-3 rounded-xl border group transition-colors ${isDarkMode ? 'bg-slate-800/50 border-slate-800 hover:border-blue-500/30' : 'bg-white border-slate-100 hover:border-blue-500/30'}`}>
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isDarkMode ? 'bg-blue-900/20 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
                       <CalIcon size={14} />
                     </div>
                     <div>
-                      <div className="font-bold text-xs dark:text-slate-100">{formatDateUK(h.date)}</div>
+                      <div className="font-bold text-xs">{formatDateUK(h.date)}</div>
                       <div className="text-[10px] text-slate-500">{h.description}</div>
                     </div>
                   </div>
-                  <button onClick={() => onRemove(h.id)} className="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100">
+                  <button onClick={() => onRemove(h.id)} className={`p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100 ${isDarkMode ? 'text-slate-400 hover:text-red-500 hover:bg-red-900/20' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'}`}>
                     <Trash2 size={16}/>
                   </button>
                 </div>
