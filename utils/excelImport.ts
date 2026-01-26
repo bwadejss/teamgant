@@ -97,6 +97,7 @@ export const importFromExcel = async (file: File): Promise<ImportResult> => {
             else if (typeof rawFinish === 'string') stepFinish = parseUKDate(rawFinish);
 
             const isDone = String(row['Done'] || '').toLowerCase() === 'yes' || row['Done'] === true;
+            const isConfirmed = String(row['Confirmed'] || '').toLowerCase() === 'yes';
 
             const step: Step = {
               id: `${siteId}-${stepName}`,
@@ -106,11 +107,13 @@ export const importFromExcel = async (file: File): Promise<ImportResult> => {
               startDate: stepStart?.toISOString() || new Date().toISOString(),
               finishDate: stepFinish?.toISOString() || new Date().toISOString(),
               done: isDone,
-              manualStartDate: isDone ? (stepStart?.toISOString()) : undefined
+              isConfirmed: isConfirmed,
+              // Crucial: Restore manualStartDate for pinned tasks so the SchedulingEngine locks them
+              manualStartDate: (isDone || isConfirmed) ? (stepStart?.toISOString()) : undefined
             };
             site.steps.push(step);
             
-            // Set initial booked start date if this is the first step
+            // Set initial booked start date if this is the first step and site is BOOKED
             if (site.status === SiteStatus.BOOKED && !site.bookedStartDate) {
               site.bookedStartDate = step.startDate;
             }

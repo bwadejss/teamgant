@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { Site, Holiday } from '../types';
 import { formatDateUK } from './dateUtils';
@@ -16,6 +15,7 @@ export const exportToExcel = (sites: Site[], holidays: Holiday[]) => {
       'Start Date': formatDateUK(step.startDate),
       'Finish Date': formatDateUK(step.finishDate),
       'Duration (Workdays)': step.durationWorkdays,
+      'Confirmed': step.isConfirmed ? 'Yes' : 'No',
       'Done': step.done ? 'Yes' : 'No',
       '_siteId': site.id,
       '_order': site.order

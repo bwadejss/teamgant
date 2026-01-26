@@ -14,7 +14,7 @@ import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS, ROW_HEIGHTS } from './constants
 import { addMonths, parseISO } from 'date-fns';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, Search } from 'lucide-react';
 
-const APP_VERSION = "v1.7.3";
+const APP_VERSION = "v1.7.4";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
