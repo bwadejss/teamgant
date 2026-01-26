@@ -56,7 +56,7 @@ export interface UserConfig {
   revisitOffsetMonths: number;
   sortMode: SortMode;
   autoRegenerateVisit: boolean;
-  colorCompleteSitesGrey: boolean;
+  colourCompleteSitesGrey: boolean;
   completeSiteColour: string;
 }
 

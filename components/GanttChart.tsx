@@ -190,7 +190,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
           </div>
 
           {rows.map((row) => {
-            const siteFullyComplete = userConfig.colorCompleteSitesGrey && row.site.steps.length === 5 && row.site.steps.every(s => s.done);
+            const siteFullyComplete = userConfig.colourCompleteSitesGrey && row.site.steps.length === 5 && row.site.steps.every(s => s.done);
             const isSiteHeader = !row.step;
             const isCollapsed = !expandedSites.has(row.site.id);
 
@@ -259,10 +259,14 @@ const GanttChart: React.FC<GanttChartProps> = ({
                     </div>
                 )}
 
-                {row.step && (
+                {row.step && (() => {
+                  const barWidth = getWidth(row.step.startDate, row.step.finishDate);
+                  const showText = barWidth > 60 && rowHeight > 30;
+                  
+                  return (
                   <div 
                     onClick={() => setSelectedBar({ site: row.site, step: row.step! })}
-                    className={`absolute rounded cursor-pointer flex items-center px-1 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95
+                    className={`absolute rounded cursor-pointer flex items-center px-1 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95 overflow-hidden
                       ${rowHeight < 40 ? 'top-1 bottom-1' : 'top-2 bottom-2'}
                       ${row.step.isTentative ? 'bg-slate-500/80 diagonal-stripe' : ''} 
                       ${row.step.done && !userConfig.keepColourOnDone && !siteFullyComplete ? 'bg-emerald-600 ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900 shadow-xl scale-[1.01]' : ''} 
@@ -270,16 +274,21 @@ const GanttChart: React.FC<GanttChartProps> = ({
                     `}
                     style={{ 
                       left: getPosition(row.step.startDate), 
-                      width: Math.max(24, getWidth(row.step.startDate, row.step.finishDate)),
+                      width: Math.max(32, barWidth),
                       backgroundColor: siteFullyComplete 
                         ? userConfig.completeSiteColour 
                         : ((!row.step.done || userConfig.keepColourOnDone) && !row.step.isTentative ? userConfig.stepColours[row.step.name] : undefined)
                     }}
                   >
-                    <span className="truncate min-w-0 flex-grow pr-0.5">{rowHeight > 30 && row.step.name}</span>
-                    {row.step.done && <Check size={rowHeight < 30 ? 10 : 12} strokeWidth={4} className="flex-none" />}
+                    {showText && <span className="truncate flex-grow pr-0.5">{row.step.name}</span>}
+                    {row.step.done && (
+                      <div className="flex-none ml-auto">
+                        <Check size={rowHeight < 30 ? 10 : 14} strokeWidth={4} className="text-white drop-shadow-sm" />
+                      </div>
+                    )}
                   </div>
-                )}
+                  );
+                })()}
               </div>
             );
           })}

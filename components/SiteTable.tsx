@@ -37,7 +37,7 @@ const ConfirmationSwitch: React.FC<{
       <div className={`relative rounded-full transition-colors flex items-center
         ${isXs ? 'w-5 h-2.5' : isSm ? 'w-7 h-4' : 'w-8 h-4.5'}
         ${isOn ? 'bg-blue-500' : (isDarkMode ? 'bg-slate-700' : 'bg-slate-300')}`}
-      >
+    >
         <div className={`absolute rounded-full bg-white shadow-sm transition-all transform
           ${isXs ? 'w-2 h-2' : isSm ? 'w-3 h-3' : 'w-3.5 h-3.5'}
           ${isOn ? (isXs ? 'translate-x-2.5' : isSm ? 'translate-x-3.5' : 'translate-x-4') : 'translate-x-0.5'}`} 
@@ -83,16 +83,33 @@ const DurationStepper: React.FC<{
   };
 
   return (
-    <div className={`flex items-center bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-300 dark:border-slate-700 overflow-hidden shadow-sm ${compact ? 'h-5' : 'h-7'}`} onClick={(e) => e.stopPropagation()}>
-      <button onClick={handleDecrement} className={`${compact ? 'w-5 h-5' : 'w-7 h-7'} flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 border-r border-slate-300 dark:border-slate-700 transition-colors`}><Minus size={compact ? 10 : 14} /></button>
+    <div 
+      className={`flex items-center rounded-md border shadow-sm transition-colors ${compact ? 'h-5' : 'h-7'} 
+        ${isDarkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-100 border-slate-300'}`} 
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button 
+        onClick={handleDecrement} 
+        className={`${compact ? 'w-5 h-5' : 'w-7 h-7'} flex items-center justify-center border-r transition-colors 
+          ${isDarkMode ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-600 border-slate-300 hover:bg-slate-200'}`}
+      >
+        <Minus size={compact ? 10 : 14} />
+      </button>
       <input 
         type="text" 
         value={localVal} 
         onChange={(e) => setLocalVal(e.target.value)} 
         onBlur={handleBlur} 
-        className={`${compact ? 'w-6 text-[9px]' : 'w-10 text-[11px]'} text-center bg-transparent border-none p-0 focus:ring-0 font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`} 
+        className={`${compact ? 'w-6 text-[9px]' : 'w-10 text-[11px]'} text-center bg-transparent border-none p-0 focus:ring-0 font-bold 
+          ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`} 
       />
-      <button onClick={handleIncrement} className={`${compact ? 'w-5 h-5' : 'w-7 h-7'} flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 border-l border-slate-300 dark:border-slate-700 transition-colors`}><Plus size={compact ? 10 : 14} /></button>
+      <button 
+        onClick={handleIncrement} 
+        className={`${compact ? 'w-5 h-5' : 'w-7 h-7'} flex items-center justify-center border-l transition-colors 
+          ${isDarkMode ? 'text-slate-400 border-slate-700 hover:bg-slate-800' : 'text-slate-600 border-slate-300 hover:bg-slate-200'}`}
+      >
+        <Plus size={compact ? 10 : 14} />
+      </button>
     </div>
   );
 };
@@ -133,7 +150,7 @@ const SiteTable: React.FC<SiteTableProps> = ({
 
   return (
     <div className={`flex-none w-[410px] border-r transition-all relative z-10 ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}>
-      <div className={`sticky top-0 z-30 flex flex-col border-b border-slate-200/10 ${isDarkMode ? 'bg-slate-950 text-slate-500' : 'bg-slate-100 text-slate-500'}`} style={{ height: rowHeight * 2 }}>
+      <div className={`sticky top-0 z-30 flex flex-col border-b border-slate-200/10 ${isDarkMode ? 'bg-slate-950 text-slate-400' : 'bg-slate-100 text-slate-500'}`} style={{ height: rowHeight * 2 }}>
         <div className="flex-grow flex items-center justify-center text-[10px] font-bold uppercase tracking-widest border-b border-slate-200/5">Project List</div>
         <div className="flex h-1/2">
           <div className="w-10 border-r border-slate-200/5"></div>

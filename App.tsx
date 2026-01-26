@@ -14,7 +14,7 @@ import { DEFAULT_DURATIONS, DEFAULT_STEP_COLOURS, ROW_HEIGHTS } from './constant
 import { addMonths, parseISO } from 'date-fns';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, Search } from 'lucide-react';
 
-const APP_VERSION = "v1.7.5";
+const APP_VERSION = "v1.7.6";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -34,7 +34,7 @@ const INITIAL_CONFIG: UserConfig = {
   revisitOffsetMonths: 3,
   sortMode: 'Creation',
   autoRegenerateVisit: true,
-  colorCompleteSitesGrey: true,
+  colourCompleteSitesGrey: true,
   completeSiteColour: '#475569' 
 };
 
@@ -100,8 +100,9 @@ const App: React.FC = () => {
     if (savedConfig) {
       try { 
         const parsed = JSON.parse(savedConfig);
-        // Map old property names if they exist
+        // Map old property names if they exist to UK spelling
         if (parsed.completeSiteColor) parsed.completeSiteColour = parsed.completeSiteColor;
+        if (parsed.colorCompleteSitesGrey !== undefined) parsed.colourCompleteSitesGrey = parsed.colorCompleteSitesGrey;
         if (parsed.stepColors) parsed.stepColours = parsed.stepColors;
         if (parsed.keepColorOnDone !== undefined) parsed.keepColourOnDone = parsed.keepColorOnDone;
         setConfig({ ...INITIAL_CONFIG, ...parsed }); 

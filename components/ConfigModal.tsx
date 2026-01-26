@@ -10,10 +10,10 @@ interface ConfigModalProps {
 }
 
 const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, isDarkMode }) => {
-  const updateStepColour = (step: StepName, color: string) => {
+  const updateStepColour = (step: StepName, colour: string) => {
     onUpdate({
       ...config,
-      stepColours: { ...config.stepColours, [step]: color }
+      stepColours: { ...config.stepColours, [step]: colour }
     });
   };
 
@@ -26,8 +26,8 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-      <div className={`rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] ${isDarkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-800'}`}>
-        <div className={`p-5 border-b flex justify-between items-center ${isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-100 bg-slate-50'}`}>
+      <div className={`rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] transition-colors border ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+        <div className={`p-5 border-b flex justify-between items-center transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-100 bg-slate-50'}`}>
           <div className="flex items-center gap-2">
             <Settings size={20} className="text-blue-500" />
             <h2 className="text-xl font-bold">System Configuration</h2>
@@ -35,7 +35,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
           <button onClick={onClose} className={`p-2 rounded-full transition-colors ${isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100'}`}><X size={20}/></button>
         </div>
 
-        <div className="p-8 overflow-y-auto space-y-8">
+        <div className="p-8 overflow-y-auto space-y-8 bg-inherit">
           {/* Sorting and General */}
           <section>
             <h3 className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500 mb-4"><SortAsc size={16}/> General Settings</h3>
@@ -45,7 +45,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                 <select 
                   value={config.sortMode} 
                   onChange={(e) => onUpdate({...config, sortMode: e.target.value as SortMode})}
-                  className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'}`}
+                  className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none transition-all ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'}`}
                 >
                   <option value="Creation">Creation Order</option>
                   <option value="Name">Site Name (A-Z)</option>
@@ -60,12 +60,12 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                   max="12"
                   value={config.revisitOffsetMonths}
                   onChange={(e) => onUpdate({...config, revisitOffsetMonths: parseInt(e.target.value) || 3})}
-                  className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'}`}
+                  className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none transition-all ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'}`}
                 />
               </div>
               
               <div className="md:col-span-2 space-y-3">
-                <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                <div className={`flex items-center gap-3 p-4 rounded-xl border-2 border-dashed transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-800/20' : 'border-slate-200 bg-slate-50'}`}>
                    <input 
                     type="checkbox" 
                     id="keepColour"
@@ -78,7 +78,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                    </label>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                <div className={`flex items-center gap-3 p-4 rounded-xl border-2 border-dashed transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-800/20' : 'border-slate-200 bg-slate-50'}`}>
                    <RefreshCcw size={18} className="text-blue-500" />
                    <div className="flex-grow">
                      <label htmlFor="autoRegen" className="text-sm font-bold block">Auto-generate next visit (12m delay)</label>
@@ -93,7 +93,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                    />
                 </div>
 
-                <div className="flex flex-col gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+                <div className={`flex flex-col gap-3 p-4 rounded-xl border-2 border-dashed transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-800/20' : 'border-slate-200 bg-slate-50'}`}>
                    <div className="flex items-center gap-3">
                      <Layers size={18} className="text-slate-500" />
                      <div className="flex-grow">
@@ -103,21 +103,21 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                      <input 
                       type="checkbox" 
                       id="greyOutComplete"
-                      checked={config.colorCompleteSitesGrey}
-                      onChange={(e) => onUpdate({...config, colorCompleteSitesGrey: e.target.checked})}
+                      checked={config.colourCompleteSitesGrey}
+                      onChange={(e) => onUpdate({...config, colourCompleteSitesGrey: e.target.checked})}
                       className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                      />
                    </div>
-                   {config.colorCompleteSitesGrey && (
-                     <div className="flex items-center gap-4 mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg shadow-inner">
-                       <span className={`text-xs font-bold uppercase tracking-tighter ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`}>Colour:</span>
+                   {config.colourCompleteSitesGrey && (
+                     <div className={`flex items-center gap-4 mt-2 p-2 rounded-lg shadow-inner border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-white border-slate-100'}`}>
+                       <span className={`text-xs font-bold uppercase tracking-tighter ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Colour:</span>
                        <input 
                          type="color" 
                          value={config.completeSiteColour} 
                          onChange={(e) => onUpdate({...config, completeSiteColour: e.target.value})}
                          className="w-10 h-6 rounded cursor-pointer border-none bg-transparent"
                        />
-                       <span className={`text-[10px] font-mono font-bold uppercase ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>{config.completeSiteColour}</span>
+                       <span className={`text-[11px] font-mono font-bold uppercase ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>{config.completeSiteColour}</span>
                      </div>
                    )}
                 </div>
@@ -130,7 +130,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
             <h3 className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500 mb-4"><Palette size={16}/> Tasks: Colours & Defaults</h3>
             <div className="space-y-4">
               {Object.values(StepName).map((step) => (
-                <div key={step} className={`flex items-center justify-between p-4 rounded-xl border ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                <div key={step} className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
                   <div className="flex items-center gap-4">
                     <input 
                       type="color" 
@@ -147,7 +147,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                       min="1"
                       value={config.defaultDurations[step]}
                       onChange={(e) => updateDefaultDuration(step, e.target.value)}
-                      className={`w-14 p-1.5 rounded-lg border-2 text-center text-xs outline-none ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                      className={`w-14 p-1.5 rounded-lg border-2 text-center text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
                     />
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Days</span>
                   </div>
@@ -157,7 +157,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
           </section>
         </div>
         
-        <div className={`p-6 border-t flex justify-end ${isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-100 bg-slate-50'}`}>
+        <div className={`p-6 border-t flex justify-end transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-100 bg-slate-50'}`}>
           <button 
             onClick={onClose}
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-95"
