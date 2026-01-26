@@ -138,22 +138,22 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSi
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Site Name</label>
-              <input required value={name} onChange={e => setName(e.target.value)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-800 focus:border-blue-500'}`} placeholder="e.g. Manchester Central" />
+              <input required value={name} onChange={e => setName(e.target.value)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-900 focus:border-blue-500'}`} placeholder="e.g. Manchester Central" />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</label>
-              <select value={siteType} onChange={e => setSiteType(e.target.value)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm cursor-pointer ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-800 focus:border-blue-500'}`}>
+              <select value={siteType} onChange={e => setSiteType(e.target.value)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm cursor-pointer ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-900 focus:border-blue-500'}`}>
                 <option value="WTW">WTW</option>
                 <option value="STW">STW</option>
               </select>
             </div>
             <div className="col-span-2">
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Owner / Team</label>
-              <input required value={owner} onChange={e => setOwner(e.target.value)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-800 focus:border-blue-500'}`} placeholder="e.g. Team North" />
+              <input required value={owner} onChange={e => setOwner(e.target.value)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-900 focus:border-blue-500'}`} placeholder="e.g. Team North" />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Scheduling Mode</label>
-              <select value={status} onChange={e => setStatus(e.target.value as SiteStatus)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm cursor-pointer ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-800 focus:border-blue-500'}`}>
+              <select value={status} onChange={e => setStatus(e.target.value as SiteStatus)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm cursor-pointer ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-900 focus:border-blue-500'}`}>
                 <option value={SiteStatus.TBC}>TBC (Auto-fill)</option>
                 <option value={SiteStatus.BOOKED}>Booked (Fixed Start)</option>
               </select>
@@ -170,7 +170,7 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSi
                     placeholder="DD"
                     value={day}
                     onChange={handleDayChange}
-                    className={`w-12 bg-transparent text-center text-sm font-bold outline-none ${isDarkMode ? 'text-white placeholder:text-slate-700' : 'text-slate-800 placeholder:text-slate-300'}`}
+                    className={`w-12 bg-transparent text-center text-sm font-bold outline-none ${isDarkMode ? 'text-white placeholder:text-slate-700' : 'text-slate-900 placeholder:text-slate-300'}`}
                   />
                   <span className={`${isDarkMode ? 'text-slate-700' : 'text-slate-300'} font-bold`}>/</span>
                   <input 
@@ -178,7 +178,7 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSi
                     placeholder="MM"
                     value={month}
                     onChange={handleMonthChange}
-                    className={`w-12 bg-transparent text-center text-sm font-bold outline-none ${isDarkMode ? 'text-white placeholder:text-slate-700' : 'text-slate-800 placeholder:text-slate-300'}`}
+                    className={`w-12 bg-transparent text-center text-sm font-bold outline-none ${isDarkMode ? 'text-white placeholder:text-slate-700' : 'text-slate-900 placeholder:text-slate-300'}`}
                   />
                   <span className={`${isDarkMode ? 'text-slate-700' : 'text-slate-300'} font-bold`}>/</span>
                   <input 
@@ -186,7 +186,7 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSi
                     placeholder="YYYY"
                     value={year}
                     onChange={handleYearChange}
-                    className={`w-16 bg-transparent text-center text-sm font-bold outline-none ${isDarkMode ? 'text-white placeholder:text-slate-700' : 'text-slate-800 placeholder:text-slate-300'}`}
+                    className={`w-16 bg-transparent text-center text-sm font-bold outline-none ${isDarkMode ? 'text-white placeholder:text-slate-700' : 'text-slate-900 placeholder:text-slate-300'}`}
                   />
                 </div>
                 <div className={`p-3 rounded-xl ${isDarkMode ? 'text-blue-500 bg-blue-900/20' : 'text-blue-500 bg-blue-50'}`}>
@@ -211,7 +211,7 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSi
                     max="30"
                     value={durations[step]}
                     onChange={(e) => updateDuration(step as StepName, e.target.value)}
-                    className={`w-16 border-2 rounded-lg p-1.5 text-center text-xs outline-none transition-all ${isDarkMode ? 'border-slate-800 bg-slate-900 text-white focus:border-blue-400' : 'border-slate-200 bg-white text-slate-800 focus:border-blue-400'}`}
+                    className={`w-16 border-2 rounded-lg p-1.5 text-center text-xs outline-none transition-all ${isDarkMode ? 'border-slate-800 bg-slate-900 text-white focus:border-blue-400' : 'border-slate-200 bg-white text-slate-900 focus:border-blue-400'}`}
                   />
                 </div>
               ))}

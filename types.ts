@@ -50,14 +50,14 @@ export type ViewMode = 'Day' | 'Week' | 'Month';
 export type SortMode = 'Creation' | 'Name' | 'Date';
 
 export interface UserConfig {
-  stepColors: Record<StepName, string>;
+  stepColours: Record<StepName, string>;
   defaultDurations: Record<StepName, number>;
-  keepColorOnDone: boolean;
+  keepColourOnDone: boolean;
   revisitOffsetMonths: number;
   sortMode: SortMode;
   autoRegenerateVisit: boolean;
   colorCompleteSitesGrey: boolean;
-  completeSiteColor: string;
+  completeSiteColour: string;
 }
 
 export interface CalendarSlot {

@@ -85,7 +85,13 @@ const DurationStepper: React.FC<{
   return (
     <div className={`flex items-center bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-300 dark:border-slate-700 overflow-hidden shadow-sm ${compact ? 'h-5' : 'h-7'}`} onClick={(e) => e.stopPropagation()}>
       <button onClick={handleDecrement} className={`${compact ? 'w-5 h-5' : 'w-7 h-7'} flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 border-r border-slate-300 dark:border-slate-700 transition-colors`}><Minus size={compact ? 10 : 14} /></button>
-      <input type="text" value={localVal} onChange={(e) => setLocalVal(e.target.value)} onBlur={handleBlur} className={`${compact ? 'w-6 text-[9px]' : 'w-10 text-[11px]'} text-center bg-transparent border-none p-0 focus:ring-0 font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`} />
+      <input 
+        type="text" 
+        value={localVal} 
+        onChange={(e) => setLocalVal(e.target.value)} 
+        onBlur={handleBlur} 
+        className={`${compact ? 'w-6 text-[9px]' : 'w-10 text-[11px]'} text-center bg-transparent border-none p-0 focus:ring-0 font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`} 
+      />
       <button onClick={handleIncrement} className={`${compact ? 'w-5 h-5' : 'w-7 h-7'} flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 border-l border-slate-300 dark:border-slate-700 transition-colors`}><Plus size={compact ? 10 : 14} /></button>
     </div>
   );

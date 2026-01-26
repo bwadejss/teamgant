@@ -10,11 +10,11 @@ import ConfirmModal from './components/ConfirmModal';
 import { SchedulingEngine } from './engine/scheduling';
 import { exportToExcel } from './utils/excelExport';
 import { importFromExcel } from './utils/excelImport';
-import { DEFAULT_DURATIONS, DEFAULT_STEP_COLORS, ROW_HEIGHTS } from './constants';
+import { DEFAULT_DURATIONS, DEFAULT_STEP_COLOURS, ROW_HEIGHTS } from './constants';
 import { addMonths, parseISO } from 'date-fns';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, Search } from 'lucide-react';
 
-const APP_VERSION = "v1.7.4";
+const APP_VERSION = "v1.7.5";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -28,14 +28,14 @@ const SEED_HOLIDAYS: Holiday[] = [
 ];
 
 const INITIAL_CONFIG: UserConfig = {
-  stepColors: DEFAULT_STEP_COLORS,
+  stepColours: DEFAULT_STEP_COLOURS,
   defaultDurations: DEFAULT_DURATIONS,
-  keepColorOnDone: false,
+  keepColourOnDone: false,
   revisitOffsetMonths: 3,
   sortMode: 'Creation',
   autoRegenerateVisit: true,
   colorCompleteSitesGrey: true,
-  completeSiteColor: '#475569' 
+  completeSiteColour: '#475569' 
 };
 
 const App: React.FC = () => {
@@ -98,7 +98,14 @@ const App: React.FC = () => {
     }
 
     if (savedConfig) {
-      try { setConfig({ ...INITIAL_CONFIG, ...JSON.parse(savedConfig) }); } catch (e) { setConfig(INITIAL_CONFIG); }
+      try { 
+        const parsed = JSON.parse(savedConfig);
+        // Map old property names if they exist
+        if (parsed.completeSiteColor) parsed.completeSiteColour = parsed.completeSiteColor;
+        if (parsed.stepColors) parsed.stepColours = parsed.stepColors;
+        if (parsed.keepColorOnDone !== undefined) parsed.keepColourOnDone = parsed.keepColorOnDone;
+        setConfig({ ...INITIAL_CONFIG, ...parsed }); 
+      } catch (e) { setConfig(INITIAL_CONFIG); }
     }
 
     if (savedZoom) setZoomLevel(savedZoom as ZoomLevel);

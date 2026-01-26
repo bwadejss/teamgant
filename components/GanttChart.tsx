@@ -195,7 +195,6 @@ const GanttChart: React.FC<GanttChartProps> = ({
             const isCollapsed = !expandedSites.has(row.site.id);
 
             // Summary Calculation for Collapsed Sites
-            // NOTE: Logic refactored to remove useMemo hook from inside the loop (fixes React error #310)
             let summaryData = null;
             if (isSiteHeader && isCollapsed && row.site.steps.length > 0) {
                 const steps = row.site.steps;
@@ -243,7 +242,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
                                 style={{ 
                                     left: getPosition(summaryData.main.start),
                                     width: getWidth(summaryData.main.start, summaryData.main.finish),
-                                    backgroundColor: siteFullyComplete ? userConfig.completeSiteColor : undefined
+                                    backgroundColor: siteFullyComplete ? userConfig.completeSiteColour : undefined
                                 }}
                             />
                         )}
@@ -253,7 +252,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
                                 style={{ 
                                     left: getPosition(summaryData.revisit.startDate),
                                     width: getWidth(summaryData.revisit.startDate, summaryData.revisit.finishDate),
-                                    backgroundColor: siteFullyComplete ? userConfig.completeSiteColor : userConfig.stepColors[StepName.REVISIT]
+                                    backgroundColor: siteFullyComplete ? userConfig.completeSiteColour : userConfig.stepColours[StepName.REVISIT]
                                 }}
                             />
                         )}
@@ -263,22 +262,22 @@ const GanttChart: React.FC<GanttChartProps> = ({
                 {row.step && (
                   <div 
                     onClick={() => setSelectedBar({ site: row.site, step: row.step! })}
-                    className={`absolute rounded cursor-pointer flex items-center px-2 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95
-                      ${rowHeight < 40 ? 'top-1 bottom-1 px-1' : 'top-2 bottom-2'}
+                    className={`absolute rounded cursor-pointer flex items-center px-1 text-[10px] font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-95
+                      ${rowHeight < 40 ? 'top-1 bottom-1' : 'top-2 bottom-2'}
                       ${row.step.isTentative ? 'bg-slate-500/80 diagonal-stripe' : ''} 
-                      ${row.step.done && !userConfig.keepColorOnDone && !siteFullyComplete ? 'bg-emerald-600 ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900 shadow-xl scale-[1.01]' : ''} 
+                      ${row.step.done && !userConfig.keepColourOnDone && !siteFullyComplete ? 'bg-emerald-600 ring-2 ring-emerald-300 ring-offset-2 ring-offset-slate-900 shadow-xl scale-[1.01]' : ''} 
                       ${!row.step.done && isBefore(parseISO(row.step.finishDate), startOfDay(new Date())) ? 'ring-2 ring-red-500 ring-offset-1 ring-offset-slate-900' : ''}
                     `}
                     style={{ 
                       left: getPosition(row.step.startDate), 
-                      width: Math.max(8, getWidth(row.step.startDate, row.step.finishDate)),
+                      width: Math.max(24, getWidth(row.step.startDate, row.step.finishDate)),
                       backgroundColor: siteFullyComplete 
-                        ? userConfig.completeSiteColor 
-                        : ((!row.step.done || userConfig.keepColorOnDone) && !row.step.isTentative ? userConfig.stepColors[row.step.name] : undefined)
+                        ? userConfig.completeSiteColour 
+                        : ((!row.step.done || userConfig.keepColourOnDone) && !row.step.isTentative ? userConfig.stepColours[row.step.name] : undefined)
                     }}
                   >
-                    <span className="truncate pr-1">{rowHeight > 30 && row.step.name}</span>
-                    {row.step.done && <Check size={rowHeight < 30 ? 10 : 12} strokeWidth={3} className="ml-auto" />}
+                    <span className="truncate min-w-0 flex-grow pr-0.5">{rowHeight > 30 && row.step.name}</span>
+                    {row.step.done && <Check size={rowHeight < 30 ? 10 : 12} strokeWidth={4} className="flex-none" />}
                   </div>
                 )}
               </div>
@@ -291,8 +290,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
         <div className={`absolute top-6 right-6 z-50 w-80 rounded-2xl shadow-2xl border overflow-hidden animate-in zoom-in-95 duration-200
           ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
           <div 
-            className={`p-4 text-white flex justify-between items-center ${selectedBar.step.done && !userConfig.keepColorOnDone ? 'bg-emerald-600' : ''}`}
-            style={{ backgroundColor: (!selectedBar.step.done || userConfig.keepColorOnDone) ? userConfig.stepColors[selectedBar.step.name] : undefined }}
+            className={`p-4 text-white flex justify-between items-center ${selectedBar.step.done && !userConfig.keepColourOnDone ? 'bg-emerald-600' : ''}`}
+            style={{ backgroundColor: (!selectedBar.step.done || userConfig.keepColourOnDone) ? userConfig.stepColours[selectedBar.step.name] : undefined }}
           >
             <h3 className="font-bold text-sm tracking-wide">{selectedBar.step.name}</h3>
             <button onClick={() => setSelectedBar(null)} className="hover:bg-white/20 p-1 rounded-full transition-colors"><X size={18}/></button>

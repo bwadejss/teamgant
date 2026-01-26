@@ -8,7 +8,7 @@ export const DEFAULT_DURATIONS: Record<StepName, number> = {
   [StepName.REVISIT]: 1,
 };
 
-export const DEFAULT_STEP_COLORS: Record<StepName, string> = {
+export const DEFAULT_STEP_COLOURS: Record<StepName, string> = {
   [StepName.PRE_WORK]: '#3b82f6', // blue-500
   [StepName.SITE_VISIT]: '#10b981', // emerald-500
   [StepName.REPORT_WRITING]: '#d97706', // amber-600

@@ -10,10 +10,10 @@ interface ConfigModalProps {
 }
 
 const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, isDarkMode }) => {
-  const updateStepColor = (step: StepName, color: string) => {
+  const updateStepColour = (step: StepName, color: string) => {
     onUpdate({
       ...config,
-      stepColors: { ...config.stepColors, [step]: color }
+      stepColours: { ...config.stepColours, [step]: color }
     });
   };
 
@@ -45,7 +45,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                 <select 
                   value={config.sortMode} 
                   onChange={(e) => onUpdate({...config, sortMode: e.target.value as SortMode})}
-                  className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}
+                  className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'}`}
                 >
                   <option value="Creation">Creation Order</option>
                   <option value="Name">Site Name (A-Z)</option>
@@ -60,7 +60,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                   max="12"
                   value={config.revisitOffsetMonths}
                   onChange={(e) => onUpdate({...config, revisitOffsetMonths: parseInt(e.target.value) || 3})}
-                  className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-white border-slate-100'}`}
+                  className={`w-full p-2.5 rounded-lg border-2 text-sm outline-none ${isDarkMode ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-900'}`}
                 />
               </div>
               
@@ -68,13 +68,13 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                 <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                    <input 
                     type="checkbox" 
-                    id="keepColor"
-                    checked={config.keepColorOnDone}
-                    onChange={(e) => onUpdate({...config, keepColorOnDone: e.target.checked})}
+                    id="keepColour"
+                    checked={config.keepColourOnDone}
+                    onChange={(e) => onUpdate({...config, keepColourOnDone: e.target.checked})}
                     className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                    />
-                   <label htmlFor="keepColor" className="text-sm font-medium">
-                     Keep original task color when completed (show tick only)
+                   <label htmlFor="keepColour" className="text-sm font-medium">
+                     Keep original task colour when completed (show tick only)
                    </label>
                 </div>
 
@@ -93,13 +93,12 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                    />
                 </div>
 
-                {/* Fixed undefined isConfirmed variable error */}
                 <div className="flex flex-col gap-3 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800">
                    <div className="flex items-center gap-3">
                      <Layers size={18} className="text-slate-500" />
                      <div className="flex-grow">
                        <label htmlFor="greyOutComplete" className="text-sm font-bold block">Grey-out completed sites</label>
-                       <span className="text-[10px] text-slate-500">Changes bar color to the selection below once all 5 steps are done.</span>
+                       <span className="text-[10px] text-slate-500">Changes bar colour to the selection below once all 5 steps are done.</span>
                      </div>
                      <input 
                       type="checkbox" 
@@ -110,15 +109,15 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                      />
                    </div>
                    {config.colorCompleteSitesGrey && (
-                     <div className="flex items-center gap-4 mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                       <span className="text-xs font-bold uppercase tracking-tighter">Color:</span>
+                     <div className="flex items-center gap-4 mt-2 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg shadow-inner">
+                       <span className={`text-xs font-bold uppercase tracking-tighter ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`}>Colour:</span>
                        <input 
                          type="color" 
-                         value={config.completeSiteColor} 
-                         onChange={(e) => onUpdate({...config, completeSiteColor: e.target.value})}
+                         value={config.completeSiteColour} 
+                         onChange={(e) => onUpdate({...config, completeSiteColour: e.target.value})}
                          className="w-10 h-6 rounded cursor-pointer border-none bg-transparent"
                        />
-                       <span className="text-[10px] font-mono text-slate-500 uppercase">{config.completeSiteColor}</span>
+                       <span className={`text-[10px] font-mono font-bold uppercase ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>{config.completeSiteColour}</span>
                      </div>
                    )}
                 </div>
@@ -126,17 +125,17 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
             </div>
           </section>
 
-          {/* Colors and Durations */}
+          {/* Colours and Durations */}
           <section>
-            <h3 className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500 mb-4"><Palette size={16}/> Tasks: Colors & Defaults</h3>
+            <h3 className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500 mb-4"><Palette size={16}/> Tasks: Colours & Defaults</h3>
             <div className="space-y-4">
               {Object.values(StepName).map((step) => (
                 <div key={step} className={`flex items-center justify-between p-4 rounded-xl border ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
                   <div className="flex items-center gap-4">
                     <input 
                       type="color" 
-                      value={config.stepColors[step]} 
-                      onChange={(e) => updateStepColor(step, e.target.value)}
+                      value={config.stepColours[step]} 
+                      onChange={(e) => updateStepColour(step, e.target.value)}
                       className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
                     />
                     <span className="text-sm font-bold">{step}</span>
@@ -148,7 +147,7 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                       min="1"
                       value={config.defaultDurations[step]}
                       onChange={(e) => updateDefaultDuration(step, e.target.value)}
-                      className={`w-14 p-1.5 rounded-lg border-2 text-center text-xs outline-none ${isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'}`}
+                      className={`w-14 p-1.5 rounded-lg border-2 text-center text-xs outline-none ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
                     />
                     <span className="text-[10px] font-bold text-slate-400 uppercase">Days</span>
                   </div>
