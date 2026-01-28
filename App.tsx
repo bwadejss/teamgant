@@ -10,11 +10,11 @@ import ConfirmModal from './components/ConfirmModal';
 import { SchedulingEngine } from './engine/scheduling';
 import { exportToExcel } from './utils/excelExport';
 import { importFromExcel } from './utils/excelImport';
-import { DEFAULT_DURATIONS, DEFAULT_STEP_COLOURS, ROW_HEIGHTS } from './constants';
+import { DEFAULT_DURATIONS, DEFAULT_STEP_COLOURS } from './constants';
 import { addMonths, parseISO } from 'date-fns';
-import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, Search } from 'lucide-react';
+import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, CalendarDays } from 'lucide-react';
 
-const APP_VERSION = "v1.7.6";
+const APP_VERSION = "v1.8.4";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -35,14 +35,23 @@ const INITIAL_CONFIG: UserConfig = {
   sortMode: 'Creation',
   autoRegenerateVisit: true,
   colourCompleteSitesGrey: true,
-  completeSiteColour: '#475569' 
+  completeSiteColour: '#475569',
+  confirmedSummaryColour: '#10b981',
+  tbcSummaryColour: '#94a3b8',
+  completedSummaryColour: '#000000'
+};
+
+const VIEW_MODE_ZOOMS: Record<string, number> = {
+  'Day': 40,
+  'Week': 12,
+  'Month': 3,
+  'Year': 0.6
 };
 
 const App: React.FC = () => {
   const [sites, setSites] = useState<Site[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('Day');
-  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>('Normal');
   const [config, setConfig] = useState<UserConfig>(INITIAL_CONFIG);
   const [showAddSite, setShowAddSite] = useState(false);
   const [showHolidays, setShowHolidays] = useState(false);
@@ -60,20 +69,24 @@ const App: React.FC = () => {
   const [showDebug, setShowDebug] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const activeRowHeight = useMemo(() => ROW_HEIGHTS[zoomLevel], [zoomLevel]);
+  const [rowHeight, setRowHeight] = useState(48);
+  const [dayWidth, setDayWidth] = useState(40);
+
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const ganttContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleVerticalScrollSync = useCallback((scrollTop: number) => {
+    if (tableContainerRef.current) tableContainerRef.current.scrollTop = scrollTop;
+  }, []);
 
   const addLog = useCallback((msg: string) => {
     console.log(`[APP DEBUG] ${msg}`);
     setDebugLog(prev => [msg, ...prev].slice(0, 10));
   }, []);
 
-  // Synchronize document-level dark mode for consistent rendering in all browsers
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    if (isDarkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
   useEffect(() => {
@@ -81,7 +94,8 @@ const App: React.FC = () => {
     const savedHolidays = localStorage.getItem('sitework_holidays');
     const savedTheme = localStorage.getItem('sitework_theme');
     const savedConfig = localStorage.getItem('sitework_config');
-    const savedZoom = localStorage.getItem('sitework_zoom');
+    const savedVZoom = localStorage.getItem('sitework_vzoom');
+    const savedHZoom = localStorage.getItem('sitework_hzoom');
     
     if (savedSites) {
       try {
@@ -100,20 +114,28 @@ const App: React.FC = () => {
     if (savedConfig) {
       try { 
         const parsed = JSON.parse(savedConfig);
-        // Map old property names if they exist to UK spelling
-        if (parsed.completeSiteColor) parsed.completeSiteColour = parsed.completeSiteColor;
-        if (parsed.colorCompleteSitesGrey !== undefined) parsed.colourCompleteSitesGrey = parsed.colorCompleteSitesGrey;
-        if (parsed.stepColors) parsed.stepColours = parsed.stepColors;
-        if (parsed.keepColorOnDone !== undefined) parsed.keepColourOnDone = parsed.keepColorOnDone;
         setConfig({ ...INITIAL_CONFIG, ...parsed }); 
       } catch (e) { setConfig(INITIAL_CONFIG); }
     }
 
-    if (savedZoom) setZoomLevel(savedZoom as ZoomLevel);
+    if (savedVZoom) setRowHeight(parseInt(savedVZoom));
+    if (savedHZoom) setDayWidth(parseFloat(savedHZoom));
     
     if (savedTheme === 'light') setIsDarkMode(false);
     else setIsDarkMode(true);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sitework_vzoom', rowHeight.toString());
+    localStorage.setItem('sitework_hzoom', dayWidth.toString());
+    
+    const foundMode = Object.entries(VIEW_MODE_ZOOMS).find(([_, val]) => Math.abs(val - dayWidth) < (val * 0.1));
+    if (foundMode) {
+      setViewMode(foundMode[0] as ViewMode);
+    } else {
+      setViewMode('' as any);
+    }
+  }, [rowHeight, dayWidth]);
 
   const scheduledSites = useMemo(() => {
     const engine = new SchedulingEngine(holidays, config);
@@ -138,14 +160,6 @@ const App: React.FC = () => {
     setSites(newSites);
     localStorage.setItem('sitework_sites', JSON.stringify(newSites));
   }, []);
-
-  const handleToggleZoom = () => {
-    const levels: ZoomLevel[] = ['Normal', 'Compact', 'Tight'];
-    const nextIndex = (levels.indexOf(zoomLevel) + 1) % levels.length;
-    const next = levels[nextIndex];
-    setZoomLevel(next);
-    localStorage.setItem('sitework_zoom', next);
-  };
 
   const handleToggleSiteStatus = (siteId: string) => {
     const scheduled = scheduledSites.find(s => s.id === siteId);
@@ -254,19 +268,15 @@ const App: React.FC = () => {
       
       if (site && revisitStep?.done) {
         addLog(`Final step complete for ${site.name}. Generating next visit...`);
-        
         let baseName = site.name;
         let versionNumber = 2;
         const vMatch = site.name.match(/\s*\(V(\d+)\)$/);
-        
         if (vMatch) {
           versionNumber = parseInt(vMatch[1]) + 1;
           baseName = site.name.replace(/\s*\(V\d+\)$/, "");
         }
-        
         const newSiteName = `${baseName} (V${versionNumber})`;
         const nextVisitStartDate = addMonths(parseISO(revisitStep.finishDate), 12);
-        
         const nextSiteId = Math.random().toString(36).substr(2, 9);
         const newSite: Site = {
           id: nextSiteId,
@@ -280,9 +290,7 @@ const App: React.FC = () => {
           order: sites.length,
           customDurations: site.customDurations
         };
-        
         sitesToSave = [...sitesToSave, newSite];
-        addLog(`Added ${newSiteName} to schedule starting ${nextVisitStartDate.getFullYear()}.`);
       }
     }
 
@@ -290,7 +298,6 @@ const App: React.FC = () => {
   };
 
   const handleUpdateStepDate = (siteId: string, stepName: StepName, newDate: string) => {
-    addLog(`Date Update Triggered: ${siteId} - ${stepName} -> ${newDate}`);
     const newSites = sites.map(site => {
       if (site.id === siteId) {
         const stepIdx = site.steps.findIndex(s => s.name === stepName);
@@ -365,7 +372,6 @@ const App: React.FC = () => {
   const handleAddSite = (siteData: Partial<Site>) => {
     const newId = Math.random().toString(36).substr(2, 9);
     let initialSteps: Step[] = [];
-    
     if (siteData.status === SiteStatus.BOOKED) {
       const engine = new SchedulingEngine(holidays, config);
       const tempSite: Site = { 
@@ -383,7 +389,6 @@ const App: React.FC = () => {
         }));
       }
     }
-
     const newSite: Site = {
       ...siteData as Site,
       id: newId,
@@ -409,8 +414,6 @@ const App: React.FC = () => {
 
   const handleUpdateStepDuration = (siteId: string, stepName: StepName, duration: number) => {
     const d = Math.max(1, duration);
-    addLog(`Duration Update Triggered: ${siteId} / ${stepName} -> ${d} days`);
-    
     const newSites = sites.map(site => {
       if (site.id === siteId) {
         const stepIdx = site.steps.findIndex(s => s.name === stepName);
@@ -429,28 +432,23 @@ const App: React.FC = () => {
             finishDate: currentStep?.finishDate || '' 
           });
         }
-        
         const newCustomDurations = { ...(site.customDurations || {}), [stepName]: d };
         return { ...site, steps: newSteps, customDurations: newCustomDurations };
       }
       return site;
     });
-    
     saveSites(newSites);
   };
 
   const handleExpandAll = () => {
-    if (expandedSites.size === sites.length) {
-      setExpandedSites(new Set());
-    } else {
-      setExpandedSites(new Set(sites.map(s => s.id)));
-    }
+    if (expandedSites.size === sites.length) setExpandedSites(new Set());
+    else setExpandedSites(new Set(sites.map(s => s.id)));
   };
 
-  const toggleDarkMode = () => {
-    const next = !isDarkMode;
-    setIsDarkMode(next);
-    localStorage.setItem('sitework_theme', next ? 'dark' : 'light');
+  const snapToViewMode = (mode: string) => {
+    if (VIEW_MODE_ZOOMS[mode]) {
+        setDayWidth(VIEW_MODE_ZOOMS[mode]);
+    }
   };
 
   return (
@@ -470,7 +468,6 @@ const App: React.FC = () => {
           {showDebug && (
              <div className="fixed top-20 left-1/2 -translate-x-1/2 w-96 bg-black/90 border border-blue-500/50 p-3 rounded-lg z-[500] text-[10px] font-mono text-blue-400 shadow-2xl">
                <div className="flex justify-between mb-2"><span>SYSTEM EVENT LOG</span><button onClick={() => setDebugLog([])}>Clear</button></div>
-               {debugLog.length === 0 && <div className="text-slate-600 italic">No events recorded...</div>}
                {debugLog.map((log, i) => <div key={i} className="truncate border-b border-white/5 py-1">{'>>'} {log}</div>)}
              </div>
           )}
@@ -479,18 +476,14 @@ const App: React.FC = () => {
             <Bug size={18} />
           </button>
 
-          <button onClick={handleExpandAll} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2" title="Expand/Collapse All Rows">
+          <button onClick={handleExpandAll} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2">
             {expandedSites.size === sites.length ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             {expandedSites.size === sites.length ? "Collapse All" : "Expand All"}
           </button>
-
-          <button onClick={handleToggleZoom} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-xs font-medium border border-slate-700 mr-2" title="Toggle Row Compression">
-            <Search size={14} /> {zoomLevel}
-          </button>
           
           <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 mr-2 border border-slate-700">
-            {['Day', 'Week', 'Month'].map((m) => (
-              <button key={m} onClick={() => setViewMode(m as ViewMode)} className={`px-2 py-1 text-[10px] font-bold rounded ${viewMode === m ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
+            {['Day', 'Week', 'Month', 'Year'].map((m) => (
+              <button key={m} onClick={() => snapToViewMode(m)} className={`px-2 py-1 text-[10px] font-bold rounded ${viewMode === m ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}>
                 {m.toUpperCase()}
               </button>
             ))}
@@ -505,11 +498,7 @@ const App: React.FC = () => {
           </button>
           
           <div className="flex items-center gap-1 mr-2">
-            <button 
-              disabled={isImporting}
-              onClick={handleImportClick} 
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-xs font-medium border ${isImporting ? 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}
-            >
+            <button disabled={isImporting} onClick={handleImportClick} className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-xs font-medium border ${isImporting ? 'bg-slate-900 text-slate-600 border-slate-800' : 'bg-slate-800 hover:bg-slate-700 border-slate-700'}`}>
               {isImporting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} 
               {isImporting ? 'Importing...' : 'Import'}
             </button>
@@ -524,7 +513,7 @@ const App: React.FC = () => {
           </button>
 
           <button onClick={() => setShowReadme(true)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ml-1"><Info size={18} /></button>
-          <button onClick={toggleDarkMode} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ml-1">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
+          <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 transition-colors ml-1">{isDarkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
           <div className="w-[1px] h-6 bg-slate-700 mx-2" />
           <button onClick={() => setShowAddSite(true)} className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all text-xs font-bold shadow-xl shadow-blue-500/20 active:scale-95">
             <Plus size={16} /> Add Site
@@ -543,39 +532,47 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <div className="flex-grow overflow-y-auto scrollbar-hide">
-          <div className="flex min-h-full">
-            <SiteTable 
-              rows={flattenedRows}
-              onToggleStepDone={handleToggleStepDone}
-              onRemoveSite={(id) => {
-                const s = sites.find(x => x.id === id);
-                if (s) setSiteToDelete(s);
-              }}
-              expandedSites={expandedSites}
-              setExpandedSites={setExpandedSites}
-              hoveredRowIndex={hoveredRowIndex}
-              setHoveredRowIndex={setHoveredRowIndex}
-              onUpdateStepDate={handleUpdateStepDate}
-              onUpdateStepDuration={handleUpdateStepDuration}
-              onToggleSiteStatus={handleToggleSiteStatus}
-              onToggleStepConfirmation={handleToggleStepConfirmation}
-              isDarkMode={isDarkMode}
-              rowHeight={activeRowHeight}
-              zoomLevel={zoomLevel}
-            />
-            <GanttChart 
-              rows={flattenedRows}
-              holidays={holidays}
-              hoveredRowIndex={hoveredRowIndex}
-              setHoveredRowIndex={setHoveredRowIndex}
-              onToggleStepDone={handleToggleStepDone}
-              isDarkMode={isDarkMode}
-              viewMode={viewMode}
-              userConfig={config}
-              rowHeight={activeRowHeight}
-              expandedSites={expandedSites}
-            />
+        <div className="flex-grow overflow-hidden flex flex-col">
+          <div className="flex-grow flex overflow-hidden">
+            <div ref={tableContainerRef} className="flex-none overflow-hidden scrollbar-hide border-r border-slate-800">
+              <SiteTable 
+                rows={flattenedRows}
+                onToggleStepDone={handleToggleStepDone}
+                onRemoveSite={(id) => {
+                  const s = sites.find(x => x.id === id);
+                  if (s) setSiteToDelete(s);
+                }}
+                expandedSites={expandedSites}
+                setExpandedSites={setExpandedSites}
+                hoveredRowIndex={hoveredRowIndex}
+                setHoveredRowIndex={setHoveredRowIndex}
+                onUpdateStepDate={handleUpdateStepDate}
+                onUpdateStepDuration={handleUpdateStepDuration}
+                onToggleSiteStatus={handleToggleSiteStatus}
+                onToggleStepConfirmation={handleToggleStepConfirmation}
+                isDarkMode={isDarkMode}
+                rowHeight={rowHeight}
+                zoomLevel="Normal"
+              />
+            </div>
+            <div ref={ganttContainerRef} className="flex-grow overflow-hidden">
+              <GanttChart 
+                rows={flattenedRows}
+                holidays={holidays}
+                hoveredRowIndex={hoveredRowIndex}
+                setHoveredRowIndex={setHoveredRowIndex}
+                onToggleStepDone={handleToggleStepDone}
+                isDarkMode={isDarkMode}
+                viewMode={viewMode as any}
+                userConfig={config}
+                rowHeight={rowHeight}
+                setRowHeight={setRowHeight}
+                dayWidth={dayWidth}
+                setDayWidth={setDayWidth}
+                expandedSites={expandedSites}
+                onVerticalScroll={handleVerticalScrollSync}
+              />
+            </div>
           </div>
         </div>
 
@@ -594,7 +591,7 @@ const App: React.FC = () => {
         {showClearConfirm && (
           <ConfirmModal 
             title="Clear All Data?"
-            message="This will permanently delete all your projects and reset holidays to defaults. Make sure you have a backup!"
+            message="This will permanently delete all your projects. Make sure you have a backup!"
             confirmText="Clear All"
             type="danger"
             onConfirm={handleClearAll}
@@ -622,17 +619,12 @@ const App: React.FC = () => {
           <div className="flex items-center gap-1 text-slate-400">Sort: {config.sortMode}</div>
         </div>
         <div className="flex items-center gap-3 italic text-slate-400">
-          <span>Shift + Scroll for Horizontal Panning • Import/Export Excel for Backups</span>
+          <span>Wheel: Pan Horiz • Shift+Wheel: Pan Vert • Ctrl+Wheel: Zoom Vert • Alt+Wheel: Zoom Horiz</span>
         </div>
       </footer>
 
       {showAddSite && (
-        <AddSiteForm 
-          onClose={() => setShowAddSite(false)} 
-          onSubmit={handleAddSite} 
-          existingSiteNames={sites.map(s => s.name)}
-          isDarkMode={isDarkMode}
-        />
+        <AddSiteForm onClose={() => setShowAddSite(false)} onSubmit={handleAddSite} existingSiteNames={sites.map(s => s.name)} isDarkMode={isDarkMode} />
       )}
       {showHolidays && <HolidayManager holidays={holidays} onAdd={(h) => {
         const nextHolidays = [...holidays, { ...h, id: Math.random().toString(36).substr(2, 9) }];

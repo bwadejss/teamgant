@@ -36,7 +36,6 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
         </div>
 
         <div className="p-8 overflow-y-auto space-y-8 bg-inherit">
-          {/* Sorting and General */}
           <section>
             <h3 className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500 mb-4"><SortAsc size={16}/> General Settings</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -92,40 +91,52 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                     className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                    />
                 </div>
+              </div>
+            </div>
+          </section>
 
-                <div className={`flex flex-col gap-3 p-4 rounded-xl border-2 border-dashed transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-800/20' : 'border-slate-200 bg-slate-50'}`}>
-                   <div className="flex items-center gap-3">
-                     <Layers size={18} className="text-slate-500" />
-                     <div className="flex-grow">
-                       <label htmlFor="greyOutComplete" className="text-sm font-bold block">Grey-out completed sites</label>
-                       <span className="text-[10px] text-slate-500">Changes bar colour to the selection below once all 5 steps are done.</span>
-                     </div>
-                     <input 
-                      type="checkbox" 
-                      id="greyOutComplete"
-                      checked={config.colourCompleteSitesGrey}
-                      onChange={(e) => onUpdate({...config, colourCompleteSitesGrey: e.target.checked})}
-                      className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                     />
-                   </div>
-                   {config.colourCompleteSitesGrey && (
-                     <div className={`flex items-center gap-4 mt-2 p-2 rounded-lg shadow-inner border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-700' : 'bg-white border-slate-100'}`}>
-                       <span className={`text-xs font-bold uppercase tracking-tighter ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Colour:</span>
-                       <input 
-                         type="color" 
-                         value={config.completeSiteColour} 
-                         onChange={(e) => onUpdate({...config, completeSiteColour: e.target.value})}
-                         className="w-10 h-6 rounded cursor-pointer border-none bg-transparent"
-                       />
-                       <span className={`text-[11px] font-mono font-bold uppercase ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>{config.completeSiteColour}</span>
-                     </div>
-                   )}
+          <section>
+            <h3 className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500 mb-4"><Layers size={16}/> Summary Bar Colours (Collapsed View)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className={`p-4 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Confirmed</label>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="color" 
+                    value={config.confirmedSummaryColour} 
+                    onChange={(e) => onUpdate({...config, confirmedSummaryColour: e.target.value})}
+                    className="w-10 h-10 rounded cursor-pointer border-none bg-transparent"
+                  />
+                  <span className="text-xs font-mono">{config.confirmedSummaryColour}</span>
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">TBC</label>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="color" 
+                    value={config.tbcSummaryColour} 
+                    onChange={(e) => onUpdate({...config, tbcSummaryColour: e.target.value})}
+                    className="w-10 h-10 rounded cursor-pointer border-none bg-transparent"
+                  />
+                  <span className="text-xs font-mono">{config.tbcSummaryColour}</span>
+                </div>
+              </div>
+              <div className={`p-4 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Completed</label>
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="color" 
+                    value={config.completedSummaryColour} 
+                    onChange={(e) => onUpdate({...config, completedSummaryColour: e.target.value})}
+                    className="w-10 h-10 rounded cursor-pointer border-none bg-transparent"
+                  />
+                  <span className="text-xs font-mono">{config.completedSummaryColour}</span>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* Colours and Durations */}
           <section>
             <h3 className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500 mb-4"><Palette size={16}/> Tasks: Colours & Defaults</h3>
             <div className="space-y-4">

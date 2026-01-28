@@ -1,3 +1,4 @@
+
 export enum SiteStatus {
   BOOKED = 'Booked',
   TBC = 'TBC'
@@ -46,7 +47,7 @@ export interface Holiday {
   description: string;
 }
 
-export type ViewMode = 'Day' | 'Week' | 'Month';
+export type ViewMode = 'Day' | 'Week' | 'Month' | 'Year';
 export type SortMode = 'Creation' | 'Name' | 'Date';
 
 export interface UserConfig {
@@ -58,6 +59,10 @@ export interface UserConfig {
   autoRegenerateVisit: boolean;
   colourCompleteSitesGrey: boolean;
   completeSiteColour: string;
+  // Summary Bar Colours
+  confirmedSummaryColour: string;
+  tbcSummaryColour: string;
+  completedSummaryColour: string;
 }
 
 export interface CalendarSlot {
