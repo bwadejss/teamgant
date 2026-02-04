@@ -106,7 +106,11 @@ export class SchedulingEngine {
         StepName.REPORT_WRITING, 
         StepName.FINAL_PRESENTATION, 
         StepName.REVISIT
-      ];
+      ].filter(stepName => {
+        const isGlobalIncluded = stepName !== StepName.REVISIT || this.config.includeRevisit;
+        const isSiteExcluded = site.excludedSteps?.includes(stepName);
+        return isGlobalIncluded && !isSiteExcluded;
+      });
 
       const requiredForRevisit = [StepName.PRE_WORK, StepName.SITE_VISIT, StepName.REPORT_WRITING, StepName.FINAL_PRESENTATION];
       const allPriorDone = requiredForRevisit.every(name => {
@@ -114,7 +118,6 @@ export class SchedulingEngine {
         return step?.done === true;
       });
 
-      // FIX: Respect bookedStartDate even for TBC sites to allow cross-year scheduling (V2/V3)
       let lastFinish: Date = site.bookedStartDate
         ? parseISO(site.bookedStartDate) 
         : getWorkingDayOnOrAfter(new Date(), this.holidays);
@@ -146,8 +149,6 @@ export class SchedulingEngine {
           finish = range.finish;
         }
 
-        // If a site is BOOKED, default new steps to confirmed unless they explicitly already have a state
-        // This ensures all sections show as confirmed when a date is given (BOOKED)
         const isConfirmed = existingStep?.isConfirmed ?? (site.status === SiteStatus.BOOKED);
         const isTentative = !isConfirmed;
 
