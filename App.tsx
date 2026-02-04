@@ -12,9 +12,10 @@ import { exportToExcel } from './utils/excelExport';
 import { importFromExcel } from './utils/excelImport';
 import { DEFAULT_DURATIONS, DEFAULT_STEP_COLOURS } from './constants';
 import { addMonths, parseISO } from 'date-fns';
+import { getWorkingDayBefore, subtractWorkdays } from './utils/dateUtils';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, CalendarDays } from 'lucide-react';
 
-const APP_VERSION = "v1.8.4";
+const APP_VERSION = "v1.8.6";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -72,11 +73,10 @@ const App: React.FC = () => {
   const [rowHeight, setRowHeight] = useState(48);
   const [dayWidth, setDayWidth] = useState(40);
 
-  const tableContainerRef = useRef<HTMLDivElement>(null);
-  const ganttContainerRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   const handleVerticalScrollSync = useCallback((scrollTop: number) => {
-    if (tableContainerRef.current) tableContainerRef.current.scrollTop = scrollTop;
+    if (tableScrollRef.current) tableScrollRef.current.scrollTop = scrollTop;
   }, []);
 
   const addLog = useCallback((msg: string) => {
@@ -175,7 +175,9 @@ const App: React.FC = () => {
           return {
             ...(originalStep || s),
             isConfirmed: !currentlyAllConfirmed,
-            manualStartDate: !currentlyAllConfirmed ? s.startDate : undefined
+            // Pin the date (manualStartDate) to current scheduled date even when unconfirming
+            // so it does not move or change when toggling status.
+            manualStartDate: originalStep?.manualStartDate || s.startDate
           };
         });
 
@@ -183,7 +185,7 @@ const App: React.FC = () => {
           ...site, 
           status: newSiteStatus, 
           steps: updatedSteps,
-          bookedStartDate: !currentlyAllConfirmed ? (site.bookedStartDate || scheduled.steps[0]?.startDate) : undefined
+          bookedStartDate: site.bookedStartDate || (scheduled.steps[0]?.startDate)
         };
       }
       return site;
@@ -204,7 +206,8 @@ const App: React.FC = () => {
           newSteps[stepIdx] = { 
             ...step, 
             isConfirmed: newConfirmedState,
-            manualStartDate: newConfirmedState ? (step.manualStartDate || currentScheduled?.startDate) : step.manualStartDate
+            // Keep manualStartDate to preserve the date even if unconfirmed
+            manualStartDate: step.manualStartDate || currentScheduled?.startDate
           };
         } else {
           newSteps.push({
@@ -372,23 +375,44 @@ const App: React.FC = () => {
   const handleAddSite = (siteData: Partial<Site>) => {
     const newId = Math.random().toString(36).substr(2, 9);
     let initialSteps: Step[] = [];
-    if (siteData.status === SiteStatus.BOOKED) {
-      const engine = new SchedulingEngine(holidays, config);
-      const tempSite: Site = { 
-        ...siteData as Site, 
-        id: newId, 
-        order: sites.length, 
-        steps: [] 
-      };
-      const scheduled = engine.scheduleAll([...sites, tempSite]).find(s => s.id === newId);
-      if (scheduled) {
-        initialSteps = scheduled.steps.map(s => ({
-          ...s,
-          isConfirmed: true,
-          manualStartDate: s.startDate 
-        }));
-      }
+    
+    // The user wants bookedStartDate to be the SITE VISIT date.
+    // If BOOKED, we'll manually pin the SITE VISIT to that date.
+    // We also need to calculate the PRE_WORK start date backwards so it ends before site visit.
+    if (siteData.status === SiteStatus.BOOKED && siteData.bookedStartDate) {
+        const visitDate = parseISO(siteData.bookedStartDate);
+        const preWorkDuration = siteData.customDurations?.[StepName.PRE_WORK] ?? config.defaultDurations[StepName.PRE_WORK];
+        
+        // Finish Pre-work the working day before site visit starts
+        const preWorkFinish = getWorkingDayBefore(visitDate, holidays);
+        const preWorkStart = subtractWorkdays(preWorkFinish, preWorkDuration, holidays);
+
+        initialSteps = [
+            {
+                id: `${newId}-${StepName.PRE_WORK}`,
+                siteId: newId,
+                name: StepName.PRE_WORK,
+                durationWorkdays: preWorkDuration,
+                startDate: preWorkStart.toISOString(),
+                finishDate: preWorkFinish.toISOString(),
+                done: false,
+                isConfirmed: true,
+                manualStartDate: preWorkStart.toISOString()
+            },
+            {
+                id: `${newId}-${StepName.SITE_VISIT}`,
+                siteId: newId,
+                name: StepName.SITE_VISIT,
+                durationWorkdays: siteData.customDurations?.[StepName.SITE_VISIT] ?? config.defaultDurations[StepName.SITE_VISIT],
+                startDate: visitDate.toISOString(),
+                finishDate: visitDate.toISOString(), // Engine will re-calculate finish based on duration
+                done: false,
+                isConfirmed: true,
+                manualStartDate: visitDate.toISOString()
+            }
+        ];
     }
+
     const newSite: Site = {
       ...siteData as Site,
       id: newId,
@@ -534,28 +558,27 @@ const App: React.FC = () => {
 
         <div className="flex-grow overflow-hidden flex flex-col">
           <div className="flex-grow flex overflow-hidden">
-            <div ref={tableContainerRef} className="flex-none overflow-hidden scrollbar-hide border-r border-slate-800">
-              <SiteTable 
-                rows={flattenedRows}
-                onToggleStepDone={handleToggleStepDone}
-                onRemoveSite={(id) => {
-                  const s = sites.find(x => x.id === id);
-                  if (s) setSiteToDelete(s);
-                }}
-                expandedSites={expandedSites}
-                setExpandedSites={setExpandedSites}
-                hoveredRowIndex={hoveredRowIndex}
-                setHoveredRowIndex={setHoveredRowIndex}
-                onUpdateStepDate={handleUpdateStepDate}
-                onUpdateStepDuration={handleUpdateStepDuration}
-                onToggleSiteStatus={handleToggleSiteStatus}
-                onToggleStepConfirmation={handleToggleStepConfirmation}
-                isDarkMode={isDarkMode}
-                rowHeight={rowHeight}
-                zoomLevel="Normal"
-              />
-            </div>
-            <div ref={ganttContainerRef} className="flex-grow overflow-hidden">
+            <SiteTable 
+              scrollRef={tableScrollRef}
+              rows={flattenedRows}
+              onToggleStepDone={handleToggleStepDone}
+              onRemoveSite={(id) => {
+                const s = sites.find(x => x.id === id);
+                if (s) setSiteToDelete(s);
+              }}
+              expandedSites={expandedSites}
+              setExpandedSites={setExpandedSites}
+              hoveredRowIndex={hoveredRowIndex}
+              setHoveredRowIndex={setHoveredRowIndex}
+              onUpdateStepDate={handleUpdateStepDate}
+              onUpdateStepDuration={handleUpdateStepDuration}
+              onToggleSiteStatus={handleToggleSiteStatus}
+              onToggleStepConfirmation={handleToggleStepConfirmation}
+              isDarkMode={isDarkMode}
+              rowHeight={rowHeight}
+              zoomLevel="Normal"
+            />
+            <div className="flex-grow overflow-hidden">
               <GanttChart 
                 rows={flattenedRows}
                 holidays={holidays}

@@ -1,5 +1,5 @@
 
-import { addDays, format, isSaturday, isSunday, parseISO, startOfDay, addMonths, differenceInCalendarDays, isSameDay, parse } from 'date-fns';
+import { addDays, format, isSaturday, isSunday, parseISO, startOfDay, addMonths, differenceInCalendarDays, isSameDay, parse, subDays } from 'date-fns';
 import { Holiday } from '../types';
 
 export const isWorkingDay = (date: Date, holidays: Holiday[]): boolean => {
@@ -18,6 +18,14 @@ export const getNextWorkingDay = (date: Date, holidays: Holiday[], excludeFriday
   return current;
 };
 
+export const getWorkingDayBefore = (date: Date, holidays: Holiday[]): Date => {
+  let current = subDays(date, 1);
+  while (!isWorkingDay(current, holidays)) {
+    current = subDays(current, 1);
+  }
+  return current;
+};
+
 export const getWorkingDayOnOrAfter = (date: Date, holidays: Holiday[], excludeFridays = false): Date => {
   let current = date;
   while (!isWorkingDay(current, holidays) || (excludeFridays && current.getDay() === 5)) {
@@ -27,13 +35,28 @@ export const getWorkingDayOnOrAfter = (date: Date, holidays: Holiday[], excludeF
 };
 
 export const addWorkdays = (startDate: Date, duration: number, holidays: Holiday[]): Date => {
-  if (duration <= 0) return startDate;
+  if (duration <= 1) return startDate;
   
   let current = startDate;
-  let workdaysRemaining = duration - 1; // Count start date as day 1
+  let workdaysRemaining = duration - 1;
   
   while (workdaysRemaining > 0) {
     current = addDays(current, 1);
+    if (isWorkingDay(current, holidays)) {
+      workdaysRemaining--;
+    }
+  }
+  return current;
+};
+
+export const subtractWorkdays = (finishDate: Date, duration: number, holidays: Holiday[]): Date => {
+  if (duration <= 1) return finishDate;
+  
+  let current = finishDate;
+  let workdaysRemaining = duration - 1;
+  
+  while (workdaysRemaining > 0) {
+    current = subDays(current, 1);
     if (isWorkingDay(current, holidays)) {
       workdaysRemaining--;
     }

@@ -146,7 +146,9 @@ export class SchedulingEngine {
           finish = range.finish;
         }
 
-        const isConfirmed = existingStep?.isConfirmed ?? false;
+        // If a site is BOOKED, default new steps to confirmed unless they explicitly already have a state
+        // This ensures all sections show as confirmed when a date is given (BOOKED)
+        const isConfirmed = existingStep?.isConfirmed ?? (site.status === SiteStatus.BOOKED);
         const isTentative = !isConfirmed;
 
         updatedSteps.push({
