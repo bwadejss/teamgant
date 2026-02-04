@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Site, Step, StepName, SiteStatus, ZoomLevel } from '../types';
-import { ChevronDown, ChevronRight, CheckCircle2, Circle, Trash2, Calendar, Plus, Minus } from 'lucide-react';
-import { parseISO, setYear } from 'date-fns';
+import { Site, Step, StepName, SiteStatus, ZoomLevel, UserConfig } from '../types';
+import { ChevronDown, ChevronRight, CheckCircle2, Circle, Trash2, Calendar, Plus, Minus, Search, X } from 'lucide-react';
+import { parseISO, setYear, isValid } from 'date-fns';
 
 interface SiteTableProps {
   rows: { site: Site; step?: Step; rowIndex: number }[];
   onToggleStepDone: (siteId: string, stepName: StepName) => void;
   onRemoveSite: (siteId: string) => void;
+  onRemoveStep: (siteId: string, stepName: StepName) => void;
   expandedSites: Set<string>;
   setExpandedSites: React.Dispatch<React.SetStateAction<Set<string>>>;
   hoveredRowIndex: number | null;
@@ -19,6 +20,9 @@ interface SiteTableProps {
   rowHeight: number;
   zoomLevel: ZoomLevel;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  userConfig: UserConfig;
 }
 
 const ConfirmationSwitch: React.FC<{
@@ -73,6 +77,7 @@ const SiteTable: React.FC<SiteTableProps> = ({
   rows, 
   onToggleStepDone, 
   onRemoveSite, 
+  onRemoveStep,
   expandedSites, 
   setExpandedSites,
   hoveredRowIndex,
@@ -83,7 +88,10 @@ const SiteTable: React.FC<SiteTableProps> = ({
   onToggleStepConfirmation,
   isDarkMode,
   rowHeight,
-  scrollRef
+  scrollRef,
+  searchTerm,
+  setSearchTerm,
+  userConfig
 }) => {
   const toggleExpand = (id: string) => {
     setExpandedSites(prev => {
@@ -95,9 +103,13 @@ const SiteTable: React.FC<SiteTableProps> = ({
   };
 
   const handleDateChange = (siteId: string, stepName: StepName, val: string) => {
-    let date = parseISO(val);
-    if (date.getFullYear() === 26) date = setYear(date, 2026);
-    onUpdateStepDate(siteId, stepName, date.toISOString());
+    if (!val) return;
+    const date = parseISO(val);
+    if (!isValid(date)) return;
+    
+    let finalDate = date;
+    if (date.getFullYear() === 26) finalDate = setYear(date, 2026);
+    onUpdateStepDate(siteId, stepName, finalDate.toISOString());
   };
 
   const isCompact = rowHeight < 40;
@@ -109,13 +121,32 @@ const SiteTable: React.FC<SiteTableProps> = ({
         <div className="flex-grow flex items-center justify-center text-[10px] font-bold uppercase tracking-widest border-b border-slate-200/5">Project List</div>
         <div className="flex h-1/2">
           <div className="w-8 border-r border-slate-200/5"></div>
-          <div className="flex-grow flex items-center px-3 font-bold text-[10px] uppercase border-r border-slate-200/5">Site / Task</div>
+          <div className="flex-grow flex items-center px-2 font-bold text-[10px] uppercase border-r border-slate-200/5 relative group">
+            <Search size={10} className={`absolute left-2 transition-opacity ${searchTerm ? 'opacity-100' : 'opacity-40'}`} />
+            <input 
+                type="text" 
+                placeholder="Search sites..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className={`w-full pl-6 pr-6 bg-transparent border-none text-[10px] font-bold outline-none placeholder:text-slate-400 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-800'}`}
+            />
+            {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-2 p-1 hover:bg-black/10 rounded-full">
+                    <X size={10} />
+                </button>
+            )}
+          </div>
           <div className="w-10"></div>
         </div>
       </div>
 
       <div ref={scrollRef} className="flex-grow overflow-auto scrollbar-hide">
-        {rows.map((row) => {
+        {rows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 opacity-40 text-center">
+            <Search size={24} className="mb-2" />
+            <p className="text-xs font-bold uppercase tracking-widest">No matching sites</p>
+          </div>
+        ) : rows.map((row) => {
           const isSiteRow = !row.step;
           const site = row.site;
           const step = row.step;
@@ -159,7 +190,18 @@ const SiteTable: React.FC<SiteTableProps> = ({
                           <Calendar size={8} className={isConfirmed ? 'text-blue-500' : 'opacity-50'} />
                           <input type="date" className={`bg-transparent border-none p-0 focus:ring-0 text-[8px] font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'} ${isConfirmed ? 'text-blue-500' : ''}`} value={parseISO(step!.startDate).toISOString().split('T')[0]} onChange={(e) => handleDateChange(site.id, step!.name, e.target.value)} />
                         </div>
-                        <DurationStepper value={step!.durationWorkdays} isDarkMode={isDarkMode} compact={isCompact} onChange={(val) => onUpdateStepDuration(site.id, step!.name, val)} />
+                        <div className="flex items-center gap-1">
+                          <DurationStepper value={step!.durationWorkdays} isDarkMode={isDarkMode} compact={isCompact} onChange={(val) => onUpdateStepDuration(site.id, step!.name, val)} />
+                          {step!.name === StepName.REVISIT && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); onRemoveStep(site.id, step!.name); }}
+                                title="Remove Revisit for this site"
+                                className="p-1 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                              >
+                                <Trash2 size={10} />
+                              </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </>

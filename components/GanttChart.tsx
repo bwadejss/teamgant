@@ -12,7 +12,8 @@ import {
   isBefore,
   isAfter,
   startOfDay,
-  isWeekend
+  isWeekend,
+  isValid
 } from 'date-fns';
 import { X, Clock, MapPin, Check, Search, GripVertical, GripHorizontal, RotateCcw } from 'lucide-react';
 import { formatDateUK } from '../utils/dateUtils';
@@ -146,17 +147,18 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const headerRef = useRef<HTMLDivElement>(null);
   const [selectedBar, setSelectedBar] = useState<{site: Site, step: Step} | null>(null);
 
-  const startDate = useMemo(() => startOfYear(new Date(2026, 0, 1)), []);
+  // START DATE: September 2025
+  const startDate = useMemo(() => new Date(2025, 8, 1), []);
   const endDate = useMemo(() => {
-    let latestTaskFinish = addMonths(startDate, 11);
+    let latestTaskFinish = addMonths(startDate, 12);
     rows.forEach(row => {
       if (row.step) {
         const finish = parseISO(row.step.finishDate);
-        if (isAfter(finish, latestTaskFinish)) latestTaskFinish = finish;
+        if (isValid(finish) && isAfter(finish, latestTaskFinish)) latestTaskFinish = finish;
       } else if (row.site.steps.length > 0) {
         row.site.steps.forEach(s => {
             const f = parseISO(s.finishDate);
-            if (isAfter(f, latestTaskFinish)) latestTaskFinish = f;
+            if (isValid(f) && isAfter(f, latestTaskFinish)) latestTaskFinish = f;
         });
       }
     });
@@ -167,7 +169,10 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const months = useMemo(() => eachMonthOfInterval({ start: startDate, end: endDate }), [startDate, endDate]);
   const holidayMap = useMemo(() => {
     const map = new Set<string>();
-    holidays.forEach(h => map.add(startOfDay(parseISO(h.date)).toISOString()));
+    holidays.forEach(h => {
+      const d = parseISO(h.date);
+      if (isValid(d)) map.add(startOfDay(d).toISOString());
+    });
     return map;
   }, [holidays]);
 
@@ -197,31 +202,21 @@ const GanttChart: React.FC<GanttChartProps> = ({
   }, [scrollX, scrollY, onVerticalScroll, syncTableScroll]);
 
   const handleWheel = useCallback((e: WheelEvent) => {
-    // If Ctrl or Alt is held, we are ZOOMING
     if (e.ctrlKey || e.altKey) {
         e.preventDefault();
         const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-        
-        if (e.ctrlKey) {
-            // Ctrl + Wheel -> Vertical Zoom (Row Height)
-            setRowHeight(Math.max(10, Math.min(150, rowHeight * zoomFactor)));
-        } else if (e.altKey) {
-            // Alt + Wheel -> Horizontal Zoom (Day Width)
-            setDayWidth(Math.max(0.5, Math.min(200, dayWidth * zoomFactor)));
-        }
+        if (e.ctrlKey) setRowHeight(Math.max(10, Math.min(150, rowHeight * zoomFactor)));
+        else if (e.altKey) setDayWidth(Math.max(0.5, Math.min(200, dayWidth * zoomFactor)));
         return;
     }
 
-    // Otherwise we are PANNING
     e.preventDefault();
     if (e.shiftKey) {
-        // Shift + Wheel -> Vertical Panning
         const visibleHeight = chartBodyRef.current?.clientHeight || 600;
         const nextY = Math.max(0, Math.min(totalChartHeight - visibleHeight, scrollY + e.deltaY));
         setScrollY(nextY);
-        syncTableScroll(nextY); // Immediate DOM update
+        syncTableScroll(nextY);
     } else {
-        // Normal Wheel -> Horizontal Panning
         const visibleWidth = chartBodyRef.current?.clientWidth || 1000;
         setScrollX(prev => Math.max(0, Math.min(totalChartWidth - visibleWidth, prev + e.deltaY)));
     }
@@ -235,8 +230,18 @@ const GanttChart: React.FC<GanttChartProps> = ({
     }
   }, [handleWheel]);
 
-  const getPosition = (dateStr: string) => differenceInCalendarDays(parseISO(dateStr), startDate) * dayWidth;
-  const getWidth = (start: string, finish: string) => (differenceInCalendarDays(parseISO(finish), parseISO(start)) + 1) * dayWidth;
+  const getPosition = (dateStr: string) => {
+    const d = parseISO(dateStr);
+    if (!isValid(d)) return 0;
+    return differenceInCalendarDays(d, startDate) * dayWidth;
+  };
+  
+  const getWidth = (startStr: string, finishStr: string) => {
+    const s = parseISO(startStr);
+    const f = parseISO(finishStr);
+    if (!isValid(s) || !isValid(f)) return 0;
+    return (differenceInCalendarDays(f, s) + 1) * dayWidth;
+  };
 
   const handleZoomH = (newVisiblePixels: number) => {
     const containerWidth = chartBodyRef.current?.clientWidth || 1000;
@@ -297,7 +302,11 @@ const GanttChart: React.FC<GanttChartProps> = ({
               const isSiteHeader = !row.step;
               const isCollapsed = !expandedSites.has(row.site.id);
               const isSiteConfirmed = row.site.steps.length > 0 && row.site.steps.every(s => s.isConfirmed);
-              const isSiteCompleted = row.site.steps.length === 5 && row.site.steps.every(s => s.done);
+              
+              // completion logic based on includeRevisit and per-site exclusions
+              const isRevisitExcluded = row.site.excludedSteps?.includes(StepName.REVISIT);
+              const requiredSteps = (userConfig.includeRevisit && !isRevisitExcluded) ? 5 : 4;
+              const isSiteCompleted = row.site.steps.length >= requiredSteps && row.site.steps.every(s => s.done);
 
               let summaryData = null;
               if (isSiteHeader && isCollapsed && row.site.steps.length > 0) {
@@ -310,10 +319,14 @@ const GanttChart: React.FC<GanttChartProps> = ({
                       mainPhaseSteps.forEach(s => {
                           const start = parseISO(s.startDate);
                           const finish = parseISO(s.finishDate);
-                          if (isBefore(start, minStart)) minStart = start;
-                          if (isAfter(finish, maxFinish)) maxFinish = finish;
+                          if (isValid(start) && isValid(finish)) {
+                              if (isBefore(start, minStart)) minStart = start;
+                              if (isAfter(finish, maxFinish)) maxFinish = finish;
+                          }
                       });
-                      summaryData = { main: { start: minStart.toISOString(), finish: maxFinish.toISOString() }, revisit: revisitStep };
+                      if (isValid(minStart) && isValid(maxFinish)) {
+                          summaryData = { main: { start: minStart.toISOString(), finish: maxFinish.toISOString() }, revisit: revisitStep };
+                      }
                   }
               }
               
@@ -333,11 +346,11 @@ const GanttChart: React.FC<GanttChartProps> = ({
                   )}
 
                   {row.step && (() => {
-                    const barWidth = getWidth(row.step.startDate, row.step.finishDate);
+                    const barWidth = getWidth(row.step!.startDate, row.step!.finishDate);
                     return (
-                      <div onClick={() => setSelectedBar({ site: row.site, step: row.step! })} className={`absolute rounded cursor-pointer flex items-center px-1 text-[9px] font-bold text-white shadow-sm hover:brightness-110 active:scale-95 overflow-hidden ${rowHeight < 30 ? 'top-1 bottom-1' : 'top-1.5 bottom-1.5'} ${row.step.isTentative ? 'diagonal-stripe opacity-60' : ''}`} style={{ left: getPosition(row.step.startDate), width: Math.max(4, barWidth), backgroundColor: userConfig.stepColours[row.step.name] }}>
-                        {barWidth > 40 && rowHeight > 24 && <span className="truncate flex-grow">{row.step.name}</span>}
-                        {row.step.done && <Check size={rowHeight < 24 ? 8 : 10} strokeWidth={4} className="ml-auto" />}
+                      <div onClick={() => setSelectedBar({ site: row.site, step: row.step! })} className={`absolute rounded cursor-pointer flex items-center px-1 text-[9px] font-bold text-white shadow-sm hover:brightness-110 active:scale-95 overflow-hidden ${rowHeight < 30 ? 'top-1 bottom-1' : 'top-1.5 bottom-1.5'} ${row.step!.isTentative ? 'diagonal-stripe opacity-60' : ''}`} style={{ left: getPosition(row.step!.startDate), width: Math.max(4, barWidth), backgroundColor: userConfig.stepColours[row.step!.name] }}>
+                        {barWidth > 40 && rowHeight > 24 && <span className="truncate flex-grow">{row.step!.name}</span>}
+                        {row.step!.done && <Check size={rowHeight < 24 ? 8 : 10} strokeWidth={4} className="ml-auto" />}
                       </div>
                     );
                   })()}

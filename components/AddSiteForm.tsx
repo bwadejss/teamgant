@@ -1,7 +1,9 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { SiteStatus, Site, StepName } from '../types';
 import { X, Clock, Calendar as CalIcon } from 'lucide-react';
 import { DEFAULT_DURATIONS } from '../constants';
+import { isValid } from 'date-fns';
 
 interface AddSiteFormProps {
   onClose: () => void;
@@ -25,9 +27,18 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSi
   const [error, setError] = useState('');
 
   // Refs for auto-focus
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const dayRef = useRef<HTMLInputElement>(null);
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Auto-focus site name on mount
+    const timer = setTimeout(() => {
+      nameInputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const updateDuration = (step: StepName, val: string) => {
     const n = parseInt(val) || 1;
@@ -97,12 +108,12 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSi
 
       if (y < 100) y += 2000;
       
-      const parsed = new Date(y, m - 1, d);
-      if (isNaN(parsed.getTime()) || parsed.getDate() !== d || parsed.getMonth() !== m - 1) {
+      const parsedDate = new Date(y, m - 1, d);
+      if (!isValid(parsedDate) || parsedDate.getDate() !== d || parsedDate.getMonth() !== m - 1) {
         setError('Invalid date components. Please check your entry.');
         return;
       }
-      bookedStartDate = parsed.toISOString();
+      bookedStartDate = parsedDate.toISOString();
     }
 
     onSubmit({
@@ -138,7 +149,14 @@ const AddSiteForm: React.FC<AddSiteFormProps> = ({ onClose, onSubmit, existingSi
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2">
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Site Name</label>
-              <input required value={name} onChange={e => setName(e.target.value)} className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-900 focus:border-blue-500'}`} placeholder="e.g. Manchester Central" />
+              <input 
+                ref={nameInputRef}
+                required 
+                value={name} 
+                onChange={e => setName(e.target.value)} 
+                className={`w-full border-2 rounded-xl p-3 outline-none transition-all text-sm ${isDarkMode ? 'border-slate-800 bg-slate-950 text-white focus:border-blue-500' : 'border-slate-100 bg-white text-slate-900 focus:border-blue-500'}`} 
+                placeholder="e.g. Manchester Central" 
+              />
             </div>
             <div>
               <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Type</label>

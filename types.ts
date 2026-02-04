@@ -39,6 +39,7 @@ export interface Site {
   steps: Step[];
   order: number;
   customDurations?: Record<string, number>;
+  excludedSteps?: StepName[]; // New property
 }
 
 export interface Holiday {
@@ -57,9 +58,9 @@ export interface UserConfig {
   revisitOffsetMonths: number;
   sortMode: SortMode;
   autoRegenerateVisit: boolean;
+  includeRevisit: boolean; 
   colourCompleteSitesGrey: boolean;
   completeSiteColour: string;
-  // Summary Bar Colours
   confirmedSummaryColour: string;
   tbcSummaryColour: string;
   completedSummaryColour: string;

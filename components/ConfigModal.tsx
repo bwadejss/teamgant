@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Settings, Palette, Clock, SortAsc, RefreshCcw, Layers } from 'lucide-react';
+import { X, Settings, Palette, Clock, SortAsc, RefreshCcw, Layers, CalendarCheck } from 'lucide-react';
 import { StepName, UserConfig, SortMode } from '../types';
 
 interface ConfigModalProps {
@@ -67,6 +67,20 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                 <div className={`flex items-center gap-3 p-4 rounded-xl border-2 border-dashed transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-800/20' : 'border-slate-200 bg-slate-50'}`}>
                    <input 
                     type="checkbox" 
+                    id="includeRevisit"
+                    checked={config.includeRevisit}
+                    onChange={(e) => onUpdate({...config, includeRevisit: e.target.checked})}
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                   />
+                   <div className="flex-grow">
+                     <label htmlFor="includeRevisit" className="text-sm font-bold block">Include Revisit Step</label>
+                     <span className="text-[10px] text-slate-500">Enable/disable the 5th step in the workflow. When disabled, 4 steps complete a site.</span>
+                   </div>
+                </div>
+
+                <div className={`flex items-center gap-3 p-4 rounded-xl border-2 border-dashed transition-colors ${isDarkMode ? 'border-slate-800 bg-slate-800/20' : 'border-slate-200 bg-slate-50'}`}>
+                   <input 
+                    type="checkbox" 
                     id="keepColour"
                     checked={config.keepColourOnDone}
                     onChange={(e) => onUpdate({...config, keepColourOnDone: e.target.checked})}
@@ -86,9 +100,10 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
                    <input 
                     type="checkbox" 
                     id="autoRegen"
-                    checked={config.autoRegenerateVisit}
+                    disabled={!config.includeRevisit}
+                    checked={config.autoRegenerateVisit && config.includeRevisit}
                     onChange={(e) => onUpdate({...config, autoRegenerateVisit: e.target.checked})}
-                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-30"
                    />
                 </div>
               </div>
@@ -140,30 +155,33 @@ const ConfigModal: React.FC<ConfigModalProps> = ({ config, onUpdate, onClose, is
           <section>
             <h3 className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-slate-500 mb-4"><Palette size={16}/> Tasks: Colours & Defaults</h3>
             <div className="space-y-4">
-              {Object.values(StepName).map((step) => (
-                <div key={step} className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
-                  <div className="flex items-center gap-4">
-                    <input 
-                      type="color" 
-                      value={config.stepColours[step]} 
-                      onChange={(e) => updateStepColour(step, e.target.value)}
-                      className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
-                    />
-                    <span className="text-sm font-bold">{step}</span>
+              {Object.values(StepName).map((step) => {
+                if (step === StepName.REVISIT && !config.includeRevisit) return null;
+                return (
+                  <div key={step} className={`flex items-center justify-between p-4 rounded-xl border transition-colors ${isDarkMode ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className="flex items-center gap-4">
+                      <input 
+                        type="color" 
+                        value={config.stepColours[step]} 
+                        onChange={(e) => updateStepColour(step, e.target.value)}
+                        className="w-8 h-8 rounded cursor-pointer border-none bg-transparent"
+                      />
+                      <span className="text-sm font-bold">{step}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Default</span>
+                      <input 
+                        type="number" 
+                        min="1"
+                        value={config.defaultDurations[step]}
+                        onChange={(e) => updateDefaultDuration(step, e.target.value)}
+                        className={`w-14 p-1.5 rounded-lg border-2 text-center text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
+                      />
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Days</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Default</span>
-                    <input 
-                      type="number" 
-                      min="1"
-                      value={config.defaultDurations[step]}
-                      onChange={(e) => updateDefaultDuration(step, e.target.value)}
-                      className={`w-14 p-1.5 rounded-lg border-2 text-center text-xs outline-none transition-all ${isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'}`}
-                    />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Days</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         </div>

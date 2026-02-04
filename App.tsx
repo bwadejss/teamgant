@@ -15,7 +15,7 @@ import { addMonths, parseISO } from 'date-fns';
 import { getWorkingDayBefore, subtractWorkdays } from './utils/dateUtils';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, CalendarDays } from 'lucide-react';
 
-const APP_VERSION = "v1.8.7";
+const APP_VERSION = "v1.9.0";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -35,6 +35,7 @@ const INITIAL_CONFIG: UserConfig = {
   revisitOffsetMonths: 3,
   sortMode: 'Creation',
   autoRegenerateVisit: true,
+  includeRevisit: true,
   colourCompleteSitesGrey: true,
   completeSiteColour: '#475569',
   confirmedSummaryColour: '#10b981',
@@ -68,6 +69,7 @@ const App: React.FC = () => {
   const [importStatus, setImportStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [rowHeight, setRowHeight] = useState(48);
@@ -139,8 +141,14 @@ const App: React.FC = () => {
 
   const scheduledSites = useMemo(() => {
     const engine = new SchedulingEngine(holidays, config);
-    return engine.scheduleAll(sites);
-  }, [sites, holidays, config]);
+    const scheduled = engine.scheduleAll(sites);
+    if (!searchTerm.trim()) return scheduled;
+    const term = searchTerm.toLowerCase();
+    return scheduled.filter(s => 
+      s.name.toLowerCase().includes(term) || 
+      s.owner.toLowerCase().includes(term)
+    );
+  }, [sites, holidays, config, searchTerm]);
 
   const flattenedRows = useMemo(() => {
     const rows: { site: Site; step?: any; rowIndex: number }[] = [];
@@ -262,7 +270,7 @@ const App: React.FC = () => {
       return site;
     });
 
-    if (stepName === StepName.REVISIT && config.autoRegenerateVisit) {
+    if (config.includeRevisit && stepName === StepName.REVISIT && config.autoRegenerateVisit) {
       const site = sitesToSave.find(s => s.id === siteId);
       const revisitStep = site?.steps.find(st => st.name === StepName.REVISIT);
       
@@ -318,6 +326,19 @@ const App: React.FC = () => {
           });
         }
         return { ...site, steps: newSteps };
+      }
+      return site;
+    });
+    saveSites(newSites);
+  };
+
+  const handleRemoveStep = (siteId: string, stepName: StepName) => {
+    const newSites = sites.map(site => {
+      if (site.id === siteId) {
+        const excludedSteps = site.excludedSteps || [];
+        if (!excludedSteps.includes(stepName)) {
+            return { ...site, excludedSteps: [...excludedSteps, stepName] };
+        }
       }
       return site;
     });
@@ -409,7 +430,8 @@ const App: React.FC = () => {
       ...siteData as Site,
       id: newId,
       order: sites.length,
-      steps: initialSteps
+      steps: initialSteps,
+      excludedSteps: []
     };
     saveSites([...sites, newSite]);
     setExpandedSites(prev => new Set([...Array.from(prev), newSite.id]));
@@ -558,6 +580,7 @@ const App: React.FC = () => {
                 const s = sites.find(x => x.id === id);
                 if (s) setSiteToDelete(s);
               }}
+              onRemoveStep={handleRemoveStep}
               expandedSites={expandedSites}
               setExpandedSites={setExpandedSites}
               hoveredRowIndex={hoveredRowIndex}
@@ -569,6 +592,9 @@ const App: React.FC = () => {
               isDarkMode={isDarkMode}
               rowHeight={rowHeight}
               zoomLevel="Normal"
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              userConfig={config}
             />
             <div className="flex-grow overflow-hidden">
               <GanttChart 
