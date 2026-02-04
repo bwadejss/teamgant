@@ -15,7 +15,7 @@ import { addMonths, parseISO } from 'date-fns';
 import { getWorkingDayBefore, subtractWorkdays } from './utils/dateUtils';
 import { LayoutGrid, Calendar, Plus, Download, Upload, Moon, Sun, Info, Maximize2, Minimize2, AlertTriangle, Loader2, X, Trash2, Bug, Settings, CalendarDays } from 'lucide-react';
 
-const APP_VERSION = "v1.8.6";
+const APP_VERSION = "v1.8.7";
 
 const SEED_HOLIDAYS: Holiday[] = [
   { id: '1', date: '2026-01-01T00:00:00.000Z', description: "New Year's Day" },
@@ -175,8 +175,6 @@ const App: React.FC = () => {
           return {
             ...(originalStep || s),
             isConfirmed: !currentlyAllConfirmed,
-            // Pin the date (manualStartDate) to current scheduled date even when unconfirming
-            // so it does not move or change when toggling status.
             manualStartDate: originalStep?.manualStartDate || s.startDate
           };
         });
@@ -206,7 +204,6 @@ const App: React.FC = () => {
           newSteps[stepIdx] = { 
             ...step, 
             isConfirmed: newConfirmedState,
-            // Keep manualStartDate to preserve the date even if unconfirmed
             manualStartDate: step.manualStartDate || currentScheduled?.startDate
           };
         } else {
@@ -376,14 +373,9 @@ const App: React.FC = () => {
     const newId = Math.random().toString(36).substr(2, 9);
     let initialSteps: Step[] = [];
     
-    // The user wants bookedStartDate to be the SITE VISIT date.
-    // If BOOKED, we'll manually pin the SITE VISIT to that date.
-    // We also need to calculate the PRE_WORK start date backwards so it ends before site visit.
     if (siteData.status === SiteStatus.BOOKED && siteData.bookedStartDate) {
         const visitDate = parseISO(siteData.bookedStartDate);
         const preWorkDuration = siteData.customDurations?.[StepName.PRE_WORK] ?? config.defaultDurations[StepName.PRE_WORK];
-        
-        // Finish Pre-work the working day before site visit starts
         const preWorkFinish = getWorkingDayBefore(visitDate, holidays);
         const preWorkStart = subtractWorkdays(preWorkFinish, preWorkDuration, holidays);
 
@@ -405,7 +397,7 @@ const App: React.FC = () => {
                 name: StepName.SITE_VISIT,
                 durationWorkdays: siteData.customDurations?.[StepName.SITE_VISIT] ?? config.defaultDurations[StepName.SITE_VISIT],
                 startDate: visitDate.toISOString(),
-                finishDate: visitDate.toISOString(), // Engine will re-calculate finish based on duration
+                finishDate: visitDate.toISOString(),
                 done: false,
                 isConfirmed: true,
                 manualStartDate: visitDate.toISOString()
@@ -594,6 +586,7 @@ const App: React.FC = () => {
                 setDayWidth={setDayWidth}
                 expandedSites={expandedSites}
                 onVerticalScroll={handleVerticalScrollSync}
+                tableSyncRef={tableScrollRef}
               />
             </div>
           </div>

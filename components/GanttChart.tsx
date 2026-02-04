@@ -32,6 +32,7 @@ interface GanttChartProps {
   setDayWidth: (w: number) => void;
   expandedSites: Set<string>;
   onVerticalScroll?: (scrollTop: number) => void;
+  tableSyncRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const Navigator: React.FC<{
@@ -138,7 +139,8 @@ const GanttChart: React.FC<GanttChartProps> = ({
   dayWidth,
   setDayWidth,
   expandedSites,
-  onVerticalScroll
+  onVerticalScroll,
+  tableSyncRef
 }) => {
   const chartBodyRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -175,6 +177,13 @@ const GanttChart: React.FC<GanttChartProps> = ({
   const [scrollX, setScrollX] = useState(0);
   const [scrollY, setScrollY] = useState(0);
 
+  // CRITICAL: Direct DOM sync to ensure Edge/Chrome alignment
+  const syncTableScroll = useCallback((newScrollY: number) => {
+    if (tableSyncRef?.current) {
+        tableSyncRef.current.scrollTop = newScrollY;
+    }
+  }, [tableSyncRef]);
+
   useEffect(() => {
     if (chartBodyRef.current) {
         chartBodyRef.current.scrollLeft = scrollX;
@@ -183,8 +192,9 @@ const GanttChart: React.FC<GanttChartProps> = ({
     if (headerRef.current) {
         headerRef.current.scrollLeft = scrollX;
     }
+    syncTableScroll(scrollY);
     if (onVerticalScroll) onVerticalScroll(scrollY);
-  }, [scrollX, scrollY, onVerticalScroll]);
+  }, [scrollX, scrollY, onVerticalScroll, syncTableScroll]);
 
   const handleWheel = useCallback((e: WheelEvent) => {
     // If Ctrl or Alt is held, we are ZOOMING
@@ -207,13 +217,15 @@ const GanttChart: React.FC<GanttChartProps> = ({
     if (e.shiftKey) {
         // Shift + Wheel -> Vertical Panning
         const visibleHeight = chartBodyRef.current?.clientHeight || 600;
-        setScrollY(prev => Math.max(0, Math.min(totalChartHeight - visibleHeight, prev + e.deltaY)));
+        const nextY = Math.max(0, Math.min(totalChartHeight - visibleHeight, scrollY + e.deltaY));
+        setScrollY(nextY);
+        syncTableScroll(nextY); // Immediate DOM update
     } else {
         // Normal Wheel -> Horizontal Panning
         const visibleWidth = chartBodyRef.current?.clientWidth || 1000;
         setScrollX(prev => Math.max(0, Math.min(totalChartWidth - visibleWidth, prev + e.deltaY)));
     }
-  }, [totalChartWidth, totalChartHeight, rowHeight, dayWidth]);
+  }, [totalChartWidth, totalChartHeight, rowHeight, dayWidth, scrollY, syncTableScroll]);
 
   useEffect(() => {
     const el = chartBodyRef.current;
@@ -240,6 +252,11 @@ const GanttChart: React.FC<GanttChartProps> = ({
 
   const handleResetH = () => setDayWidth(40);
   const handleResetV = () => setRowHeight(48);
+
+  const handleNavScrollY = (next: number) => {
+    setScrollY(next);
+    syncTableScroll(next);
+  };
 
   return (
     <div className={`flex flex-col h-full overflow-hidden transition-all min-w-0 ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'} relative`}>
@@ -345,7 +362,7 @@ const GanttChart: React.FC<GanttChartProps> = ({
               orientation="vertical" 
               isDarkMode={isDarkMode} 
               currentOffset={scrollY} 
-              onScroll={setScrollY} 
+              onScroll={handleNavScrollY} 
               onZoom={handleZoomV} 
             />
           </div>

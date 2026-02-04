@@ -18,6 +18,7 @@ interface SiteTableProps {
   isDarkMode: boolean;
   rowHeight: number;
   zoomLevel: ZoomLevel;
+  scrollRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const ConfirmationSwitch: React.FC<{
@@ -81,7 +82,8 @@ const SiteTable: React.FC<SiteTableProps> = ({
   onToggleSiteStatus,
   onToggleStepConfirmation,
   isDarkMode,
-  rowHeight
+  rowHeight,
+  scrollRef
 }) => {
   const toggleExpand = (id: string) => {
     setExpandedSites(prev => {
@@ -112,7 +114,7 @@ const SiteTable: React.FC<SiteTableProps> = ({
         </div>
       </div>
 
-      <div className="flex-grow overflow-hidden">
+      <div ref={scrollRef} className="flex-grow overflow-auto scrollbar-hide">
         {rows.map((row) => {
           const isSiteRow = !row.step;
           const site = row.site;
